@@ -162,7 +162,7 @@ if __name__ == "__main__":
     features = ['sm_lat_ipp', 'sm_lon_ipp_s', 'sm_lon_ipp_c', 'sod_s', 'sod_c', 'satele','satazi_s', 'satazi_c']
 
     logger.info("Loading Data into tensors...")
-    X = torch.tensor(data[features].values, device=device)
+    X = torch.tensor(data[features].values, device=device, dtype=torch.float64)
     y = torch.tensor(data['stec'].values, device=device, dtype=torch.float64).unsqueeze_(-1)
 
     logger.info("Creating Tensor Datasets...")
@@ -193,6 +193,7 @@ if __name__ == "__main__":
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            torch.save(model.state_dict(), "model.pth")
         else:
             # validation loss is increasing, so we stop training
             logger.info("Validation loss increased. Stopping training.")
