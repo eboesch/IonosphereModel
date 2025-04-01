@@ -145,6 +145,9 @@ def test(dataloader, model, loss_fct, device):
 
 
 if __name__ == "__main__":
+    if not os.path.exists("outputs"): 
+        os.makedirs("outputs")
+                    
     torch.manual_seed(10)
     logging.basicConfig(filename='outputs/FCN.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
 
