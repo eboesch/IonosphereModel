@@ -6,6 +6,8 @@ In order to run execute:
 4.  pip install -r requirements.txt
 5.  screen
 6.  srun --ntasks=1 --cpus-per-task=10 --mem-per-cpu=4096 -G 1 -t 600 -o file.out -e file.err python main.py &
+
+
 Then press Control+A+D
 
 # Infrastructure / tools to look into:
