@@ -8,7 +8,7 @@ In order to run execute:
 6.  srun --ntasks=1 --cpus-per-task=10 --mem-per-cpu=4096 -G 1 -t 600 -o file.out -e file.err python main.py &
 
 
-Then press Control+A+D
+Then press Control+A, followed by Control+D
 
 # Infrastructure / tools to look into:
 - cuda version that the gpus use. Get a torch version that is similar. We could ask arno to share with us a pip freeze > requirements.txt of his environment
