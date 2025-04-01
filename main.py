@@ -38,7 +38,7 @@ def split_train_val_test(data: pd.DataFrame) -> pd.DataFrame:
       may not be reproducible if, for instance, OS changes.
     """
 
-    split_file_path = "/cluster/work/igp_psr/dslab_FS25/split.json"
+    split_file_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/split.json"
     if os.path.exists(split_file_path):
         with open(split_file_path, 'r') as f:
             stations_map = json.load(f)
