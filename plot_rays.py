@@ -22,4 +22,4 @@ ax = fig.add_subplot(111, projection="3d", elev=75)
 for coord in coords:
     coord = coord
     ax.plot(coord[:2].astype(float), coord[2:4].astype(float), [0, 1], color=cmap((hash(coord[5]) % 1000) / 1000), alpha=0.2)
-fig.savefig('nerfs3D.png')
+fig.savefig('outputs/nerfs3D.png')
