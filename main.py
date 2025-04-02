@@ -9,8 +9,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 logger = logging.getLogger(__name__)
 
-datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/322/ccl_2024322_30_5.h5"
-# datapath = "V:/courses/dslab/team16/data/2023/020/ccl_2023020_30_5.h5"
+# datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/322/ccl_2024322_30_5.h5"
+datapath = "V:/courses/dslab/team16/data/2023/020/ccl_2023020_30_5.h5"
 
 def get_data(datapath: str) -> pd.DataFrame:
     file = h5py.File(datapath, 'r')
@@ -94,7 +94,7 @@ def train(dataloader, model, loss_fct, optimizer, device):
 
         # # print statistics
         running_loss += loss.item()
-        if batch % 3000 == 2999:    
+        if batch % 6000 == 5999:    
             # print(f'[{batch + 1:5d}/{len(dataloader):>5d}] loss: {running_loss / 2000:.3f}')
             logger.info(f'[{batch + 1:5d}/{len(dataloader):>5d}] loss: {running_loss / 2000:.3f}')
             running_loss = 0.0
@@ -126,6 +126,7 @@ def test(dataloader, model, loss_fct, device):
 if __name__ == "__main__":
     torch.manual_seed(10)
     logging.basicConfig(filename='FCN.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
+    logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
 
     # device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu" #only work in pytorch 2.6
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
@@ -198,7 +199,7 @@ if __name__ == "__main__":
 
     # print("Starting evaluation...")
     logger.info("Starting evaluation...")
-    eval_loss_fct = nn.MAELoss()
+    eval_loss_fct = nn.L1loss()
     test_loss = test(dataloader_test, model, eval_loss_fct, device)
     # print(f"Evaluation MAE Loss: {test_loss:>7f}")
     logger.info(f"Evaluation MAE Loss: {test_loss:>7f}")
