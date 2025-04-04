@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 
 class DatasetGNSS(Dataset):
-    # Based in https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
+    # An adaptation from https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
     def __init__(self, datapaths: list[str], split: int, splits_file: str):
         self.datapaths_info = []
         self.current_length = 0
