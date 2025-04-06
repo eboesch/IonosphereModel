@@ -30,12 +30,12 @@ class DatasetGNSS(Dataset):
         # TODO: Find a better way to do this
         self.stations = [st.encode() for st, spl in splits_dict.items() if spl == split]
         current_start_point = 0
-    
+
         for datapath in datapaths:
             # extract year and doy from datapath
             year = datapath.split('/')[-3]
             doy = datapath.split('/')[-2] 
-            indices = self._get_indices(datapath, year, doy)
+            indices = self._get_indices(datapath, year, doy) #TODO: need to be sure that the given file actually exists
             # add add additional features to data
             self.datapaths_info.append(
                 {
@@ -117,7 +117,7 @@ class DatasetGNSS(Dataset):
     
     
 if __name__ == "__main__":
-    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 302)]
+    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(302, 304)]
     splits_file = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/split_exp.json"
     train_dataset = DatasetGNSS(datapaths, 0, splits_file)
     train_dataset[10]

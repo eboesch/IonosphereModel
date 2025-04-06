@@ -1,3 +1,4 @@
+"""Script to load a pre-trained model and run evaluation and a test set"""
 import h5py
 import json
 import os
@@ -29,51 +30,28 @@ if __name__ == "__main__":
         os.makedirs("outputs")
                     
     torch.manual_seed(10)
-    logging.basicConfig(filename='outputs/FCN_test.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
+    logging.basicConfig(filename='outputs/FCN_eval.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
     logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
 
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
     logger.info("Using %s device", device)
 
-    learning_rate = 1e-3
     batch_size = 64
-    epochs = 1
     
-    dataset_train = DatasetGNSS(datapaths, 0, splits_file)
-    dataset_val = DatasetGNSS(datapaths, 1, splits_file)
     dataset_test = DatasetGNSS(datapaths, 2, splits_file)
 
     
     logger.info("Preparing DataLoaders...")
-    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
-    dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
     dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False)
 
 
     logger.info("Setting up Model...")
     model = FCN().to(device)
+    model_path = "model.pth"
+    model.load_state_dict(torch.load(model_path, weights_only=True))
+    # model.eval()
+
     logger.info("Model: %s", model)
-
-    loss = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-    logger.info("Starting training...")
-    best_val_loss = float('inf')
-    for t in range(epochs):
-        logger.info("-------------------------------\nEpoch %s\n-------------------------------", t+1)
-        train_single_epoch(dataloader_train, model, loss, optimizer, device, logger,log_interval=3000)
-        val_loss = test(dataloader_val, model, loss, device)
-        logger.info(f"Validation Loss: {val_loss:>7f}")
-        
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            torch.save(model.state_dict(), "model.pth")
-        else:
-            # validation loss is increasing, so we stop training
-            logger.info("Validation loss increased. Stopping training.")
-            break
-        
-    logger.info("Training completed.")
 
 
     logger.info("Starting evaluation...")
