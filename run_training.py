@@ -61,7 +61,7 @@ if __name__ == "__main__":
     best_val_loss = float('inf')
     for t in range(epochs):
         logger.info("-------------------------------\nEpoch %s\n-------------------------------", t+1)
-        train_single_epoch(dataloader_train, model, loss, optimizer, device, logger)
+        train_single_epoch(dataloader_train, model, loss, optimizer, device, logger,log_interval=6000)
         val_loss = test(dataloader_val, model, loss, device)
         logger.info(f"Validation Loss: {val_loss:>7f}")
         

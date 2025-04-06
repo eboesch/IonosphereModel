@@ -1,6 +1,12 @@
 import torch
 
 def test(dataloader, model, loss_fct, device):
+    """
+    Evaluates the given model on the data in the dataloader using the given loss function.
+
+    Returns the average evaluation loss.
+    """
+    
     # Set the model to evaluation mode - important for batch normalization and dropout layers
     model.eval()
     num_batches = len(dataloader)

@@ -2,6 +2,10 @@ from torch import nn
 import torch.nn.functional as F
 
 class FCN(nn.Module):
+    """
+    Class for a fully connected model in pytorch.
+    """
+    
     def __init__(self):
         super().__init__()
         self.fc1 = nn.Linear(10, 256)

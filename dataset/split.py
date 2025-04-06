@@ -5,10 +5,18 @@ from matplotlib import pyplot as plt
 import h5py
 
 def generate_split_train_val_test(data: pd.DataFrame, split_file_path: str):
+    """
+    Assigns each station a data category (train/val/test). Plots stations and corresponding category.
+    Creates a JSON dictionary containing the data split of the stations.
+    """
+
     # NOTE: pandas is only used to keep track of each station lon and lat, which are used for plotting reasons.
     data["station"] = data["station"].str.decode("utf8")
     stations_df = data[["station", "lat_sta", "lon_sta"]].groupby("station").agg("first").sort_values(by="station").reset_index()
+    # create a list of all stations
     stations = stations_df["station"].tolist()
+
+    # shuffle stations list assign a data category (train/val/test) to each entry
     np.random.seed(10)  
     np.random.shuffle(stations)
     nstations = len(stations)

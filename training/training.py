@@ -1,6 +1,11 @@
 from tqdm import tqdm
 
-def train_single_epoch(dataloader, model, loss_fct, optimizer, device, logger):
+def train_single_epoch(dataloader, model, loss_fct, optimizer, device, logger, log_interval):
+    """
+    Performs a single training epoch for the given model, using the given training data, loss function and optimizer. 
+    Every log_interval steps, the running loss is written to the logger.
+    """
+    
     size = len(dataloader.dataset)
     # Set the model to training mode - important for batch normalization and dropout layers
     model.train()
@@ -20,6 +25,6 @@ def train_single_epoch(dataloader, model, loss_fct, optimizer, device, logger):
 
         # print statistics
         running_loss += loss.item()
-        if batch % 6000 == 5999:    
-            logger.info(f'[{batch + 1:5d}/{len(dataloader):>5d}] loss: {running_loss / 2000:.3f}')
+        if batch % log_interval == log_interval-1:    
+            logger.info(f'[{batch + 1:5d}/{len(dataloader):>5d}] loss: {running_loss / log_interval:.3f}')
             running_loss = 0.0
