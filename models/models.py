@@ -6,9 +6,9 @@ class FCN(nn.Module):
     Class for a fully connected model in pytorch.
     """
     
-    def __init__(self):
+    def __init__(self, input_features):
         super().__init__()
-        self.fc1 = nn.Linear(10, 256)
+        self.fc1 = nn.Linear(input_features, 256)
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 1)
         # self.double()

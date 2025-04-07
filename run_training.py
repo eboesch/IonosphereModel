@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 302)]
-splits_file = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/split_exp.json"
+splits_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 # datapath = "V:/courses/dslab/team16/data/2023/020/ccl_2023020_30_5.h5"
 
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         os.makedirs("outputs")
                     
     torch.manual_seed(10)
-    logging.basicConfig(filename='outputs/FCN_test.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
+    logging.basicConfig(filename='outputs/FCN.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
     logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
 
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
@@ -39,9 +39,11 @@ if __name__ == "__main__":
     batch_size = 64
     epochs = 1
     
-    dataset_train = DatasetGNSS(datapaths, 0, splits_file)
-    dataset_val = DatasetGNSS(datapaths, 1, splits_file)
-    dataset_test = DatasetGNSS(datapaths, 2, splits_file)
+    dataset_train = DatasetGNSS(datapaths, "train", splits_path)
+    x, y = dataset_train[0]
+    input_features = x.shape.item()
+    dataset_val = DatasetGNSS(datapaths, "val", splits_path)
+    dataset_test = DatasetGNSS(datapaths, "test", splits_path)
 
     
     logger.info("Preparing DataLoaders...")
@@ -51,7 +53,7 @@ if __name__ == "__main__":
 
 
     logger.info("Setting up Model...")
-    model = FCN().to(device)
+    model = FCN(input_features).to(device)
     logger.info("Model: %s", model)
 
     loss = nn.MSELoss()

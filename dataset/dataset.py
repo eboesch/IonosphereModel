@@ -52,7 +52,7 @@ class DatasetGNSS(Dataset):
         for datapath in datapaths:            
             if not(os.path.isfile(datapath)):
                 # delete this day from datapaths, as there is no data available for that day 
-                print("I am skipping", datapath)
+                print("Skipping", datapath)
                 continue
             
             # extract year and doy from datapath
@@ -62,7 +62,6 @@ class DatasetGNSS(Dataset):
             
             file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
             data = file.get_node(f"/{year}/{doy}/all_data")
-            print(doy)
 
             
             indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
