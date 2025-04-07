@@ -1,14 +1,34 @@
 from torch.utils.data import Dataset
 import torch
 import tables
-import json
+import os
 import numpy as np
 from numpy.typing import NDArray
 
 
+def get_features_from_row(row: NDArray, doy: str):
+    x = torch.tensor(
+            [
+                row['sm_lat_ipp'],
+                np.sin(2 * np.pi * row['sm_lon_ipp'] / 360),
+                np.cos(2 * np.pi * row['sm_lon_ipp'] / 360),
+                np.sin(2 * np.pi * row['sod'] / 86400),
+                np.cos(2 * np.pi * row['sod'] / 86400), 
+                np.sin(2 * np.pi * row['satazi'] / 360),
+                np.cos(2 * np.pi * row['satazi'] / 360),
+                row['satele'],
+                float(doy)
+            ],
+            dtype=torch.float32
+        )
+    y = torch.tensor([row['stec']]) # label
+    return x, y
+
+
+
 class DatasetGNSS(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: int, splits_file: str):
+    def __init__(self, datapaths: list[str], split: str, splits_path: str):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -16,25 +36,27 @@ class DatasetGNSS(Dataset):
             datapaths_info :    List of dictionaries. Each dictionary contains: datapath, year, doy, indices 
                 (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
                 of a file in the dataset.
-            current_length :    
             stations :  list of all stations matching the given split type, encoded to bytes.
             lenght :    length of the Dataset
         """
         self.datapaths_info = []
-        self.current_length = 0 # TODO: this is defined but never used again
-        with open(splits_file, 'r') as f:
-            splits_dict = json.load(f)
+        self.stations = np.load(splits_path + split + ".npy")
             
         # In order to save the stations to json format, I had to map them from bytes to strings.
         # We now remap them to bytes
         # TODO: Find a better way to do this
-        self.stations = [st.encode() for st, spl in splits_dict.items() if spl == split]
         current_start_point = 0
 
-        for datapath in datapaths:
+        for datapath in datapaths:            
+            if not(os.path.isfile(datapath)):
+                # delete this day from datapaths, as there is no data available for that day 
+                datapaths.remove(datapath)
+                continue
+            
             # extract year and doy from datapath
             year = datapath.split('/')[-3]
-            doy = datapath.split('/')[-2] 
+            doy = datapath.split('/')[-2]
+            
             indices = self._get_indices(datapath, year, doy) #TODO: need to be sure that the given file actually exists
             # add add additional features to data
             self.datapaths_info.append(
@@ -74,7 +96,6 @@ class DatasetGNSS(Dataset):
             if next_datapath_info['start_point'] > index:
                 datapath_info = curr_datapath_info
                 break
-        # TODO: are this indentations correct? seems a bit weird to me
         else:
             datapath_info = self.datapaths_info[-1]
 
@@ -89,23 +110,7 @@ class DatasetGNSS(Dataset):
             del data
         
         # save the data in a tensor and creat
-        x = torch.tensor(
-            [
-                row['sm_lat_ipp'],
-                np.sin(2 * np.pi * row['sm_lon_ipp'] / 360),
-                np.cos(2 * np.pi * row['sm_lon_ipp'] / 360),
-                np.sin(2 * np.pi * row['sod'] / 86400),
-                np.cos(2 * np.pi * row['sod'] / 86400), 
-                np.sin(2 * np.pi * row['satazi'] / 360),
-                np.cos(2 * np.pi * row['satazi'] / 360),
-                np.cos(2 * np.pi * row['satazi'] / 360), #TODO: this is the same as the row above?
-                row['satele'],
-                float(doy)
-            ],
-            dtype=torch.float32
-        ) 
-        
-        y = torch.tensor([row['stec']]) # label
+        x, y = get_features_from_row(row, doy)
         
         return x, y
         
@@ -115,9 +120,13 @@ class DatasetGNSS(Dataset):
         """
         return self.length
     
+
+       
+    
+    
     
 if __name__ == "__main__":
-    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(302, 304)]
-    splits_file = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/split_exp.json"
-    train_dataset = DatasetGNSS(datapaths, 0, splits_file)
+    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(322, 323)]
+    splits_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
+    train_dataset = DatasetGNSS(datapaths, "train", splits_path)
     train_dataset[10]
