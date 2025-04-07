@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from dataset.dataset import DatasetGNSS
 from evaluation.test import test
-
+from datetime import datetime
 from models.models import FCN
 from training.training import train_single_epoch
 
@@ -25,10 +25,12 @@ dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 
 
 if __name__ == "__main__":
+    print("HELLO")
     if not os.path.exists(dslab_path + "models"): 
         os.makedirs(dslab_path + "models")
-                
-    training_id = "model_1"
+
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    training_id = "model_" + timestamp
 
     model_path = dslab_path + "models/" + training_id + "/"
     assert not os.path.exists(model_path), f"Training ID {training_id} already exists"
@@ -45,6 +47,11 @@ if __name__ == "__main__":
     learning_rate = 1e-3
     batch_size = 64
     epochs = 1
+    
+    logger.info(f"learning_rate: {learning_rate}")
+    logger.info(f"batch_size: {batch_size}")
+    logger.info(f"epochs: {epochs}")
+
     
     dataset_train = DatasetGNSS(datapaths, "train")
     x, y = dataset_train[0]
