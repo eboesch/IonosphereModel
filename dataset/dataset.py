@@ -46,22 +46,32 @@ class DatasetGNSS(Dataset):
         # We now remap them to bytes
         # TODO: Find a better way to do this
         current_start_point = 0
+        self.data = []
+
 
         for datapath in datapaths:            
             if not(os.path.isfile(datapath)):
                 # delete this day from datapaths, as there is no data available for that day 
-                datapaths.remove(datapath)
+                print("I am skipping", datapath)
                 continue
             
             # extract year and doy from datapath
             year = datapath.split('/')[-3]
             doy = datapath.split('/')[-2]
             
-            indices = self._get_indices(datapath, year, doy) #TODO: need to be sure that the given file actually exists
+            
+            file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
+            data = file.get_node(f"/{year}/{doy}/all_data")
+            print(doy)
+
+            
+            indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
             # add add additional features to data
             self.datapaths_info.append(
                 {
                     "datapath": datapath,
+                    "file": file,
+                    "data": data,
                     "year": year,
                     "doy": doy,
                     "indices": indices,
@@ -72,15 +82,12 @@ class DatasetGNSS(Dataset):
             
         self.length = current_start_point
             
-    def _get_indices(self, datapath: str, year: str, doy: str) -> NDArray:
+    def _get_indices(self, data) -> NDArray:
         """
         Returns the indices of all datapoints whose stations is in the current datasplit.
         """
-        
-        with tables.open_file(datapath, mode='r', driver='H5FD_SEC2') as file:
-            data = file.get_node(f"/{year}/{doy}/all_data")
-            mask_for_split = np.isin(data.col('station'), self.stations) # select indices of datapoints whose stations that are in the current split
-            del data
+        # select indices of datapoints whose stations that are in the current split
+        mask_for_split = np.isin(data.col('station'), self.stations) 
 
         indices = np.arange(0, len(mask_for_split), 1)[mask_for_split]
         del mask_for_split
@@ -99,15 +106,12 @@ class DatasetGNSS(Dataset):
         else:
             datapath_info = self.datapaths_info[-1]
 
-        # extract all relevant data
-        with tables.open_file(datapath_info['datapath'], mode='r', driver='H5FD_SEC2') as file:
-            year = datapath_info['year']
-            doy = datapath_info['doy']
-            indices = datapath_info['indices']
-            start_point = datapath_info['start_point']
-            data = file.get_node(f"/{year}/{doy}/all_data")
-            row = data[indices[index - start_point]]
-            del data
+        # year = datapath_info['year']
+        doy = datapath_info['doy']
+        indices = datapath_info['indices']
+        start_point = datapath_info['start_point']
+        data = datapath_info['data']
+        row = data[indices[index - start_point]]
         
         # save the data in a tensor and creat
         x, y = get_features_from_row(row, doy)
@@ -120,13 +124,18 @@ class DatasetGNSS(Dataset):
         """
         return self.length
     
+    def __del__(self):
+        for datapath_info in self.datapaths_info:
+            datapath_info["file"].close()
+    
 
        
     
     
     
 if __name__ == "__main__":
-    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(322, 323)]
+    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doi).zfill(3)}/ccl_2024{str(doi).zfill(3)}_30_5.h5" for doi in range(1, 3)]
     splits_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
     train_dataset = DatasetGNSS(datapaths, "train", splits_path)
-    train_dataset[10]
+    print(train_dataset[10])
+    train_dataset.__del__()
