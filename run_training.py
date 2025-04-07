@@ -19,17 +19,24 @@ logger = logging.getLogger(__name__)
 
 
 datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 302)]
-splits_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
+dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 # datapath = "V:/courses/dslab/team16/data/2023/020/ccl_2023020_30_5.h5"
 
 
 
 if __name__ == "__main__":
-    if not os.path.exists("outputs"): 
-        os.makedirs("outputs")
-                    
+    if not os.path.exists(dslab_path + "models"): 
+        os.makedirs(dslab_path + "models")
+                
+    training_id = "model_1"
+
+    model_path = dslab_path + "models/" + training_id + "/"
+    assert not os.path.exists(model_path), f"Training ID {training_id} already exists"
+          
+    os.makedirs(model_path)
+
     torch.manual_seed(10)
-    logging.basicConfig(filename='outputs/FCN.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
+    logging.basicConfig(filename=model_path + 'logs.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
     logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
 
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
@@ -41,7 +48,7 @@ if __name__ == "__main__":
     
     dataset_train = DatasetGNSS(datapaths, "train")
     x, y = dataset_train[0]
-    input_features = x.shape.item()
+    input_features = x.shape[0]
     dataset_val = DatasetGNSS(datapaths, "val")
     dataset_test = DatasetGNSS(datapaths, "test")
 
@@ -69,7 +76,7 @@ if __name__ == "__main__":
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), "model.pth")
+            torch.save(model.state_dict(), model_path + "model.pth")
         else:
             # validation loss is increasing, so we stop training
             logger.info("Validation loss increased. Stopping training.")
