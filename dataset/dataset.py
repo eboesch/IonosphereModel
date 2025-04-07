@@ -28,7 +28,7 @@ def get_features_from_row(row: NDArray, doy: str):
 
 class DatasetGNSS(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, splits_path: str):
+    def __init__(self, datapaths: list[str], split: str):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -40,7 +40,8 @@ class DatasetGNSS(Dataset):
             lenght :    length of the Dataset
         """
         self.datapaths_info = []
-        self.stations = np.load(splits_path + split + ".npy")
+        with open(f"dataset/{split}.list", "r") as file:
+            self.stations = [line.strip().encode('utf8') for line in file]
             
         # In order to save the stations to json format, I had to map them from bytes to strings.
         # We now remap them to bytes
@@ -127,14 +128,9 @@ class DatasetGNSS(Dataset):
         for datapath_info in self.datapaths_info:
             datapath_info["file"].close()
     
-
-       
-    
-    
     
 if __name__ == "__main__":
     datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doi).zfill(3)}/ccl_2024{str(doi).zfill(3)}_30_5.h5" for doi in range(1, 3)]
-    splits_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-    train_dataset = DatasetGNSS(datapaths, "train", splits_path)
+    train_dataset = DatasetGNSS(datapaths, "train")
     print(train_dataset[10])
     train_dataset.__del__()

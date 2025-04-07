@@ -39,11 +39,11 @@ if __name__ == "__main__":
     batch_size = 64
     epochs = 1
     
-    dataset_train = DatasetGNSS(datapaths, "train", splits_path)
+    dataset_train = DatasetGNSS(datapaths, "train")
     x, y = dataset_train[0]
     input_features = x.shape.item()
-    dataset_val = DatasetGNSS(datapaths, "val", splits_path)
-    dataset_test = DatasetGNSS(datapaths, "test", splits_path)
+    dataset_val = DatasetGNSS(datapaths, "val")
+    dataset_test = DatasetGNSS(datapaths, "test")
 
     
     logger.info("Preparing DataLoaders...")
