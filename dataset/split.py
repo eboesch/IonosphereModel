@@ -4,32 +4,44 @@ import numpy as np
 from matplotlib import pyplot as plt
 import h5py
 
-def generate_split_train_val_test(data: pd.DataFrame, split_file_path: str):
+def generate_split_train_val_test(data: pd.DataFrame, splits_path: str, train_frac=0.8):
     """
     Assigns each station a data category (train/val/test). Plots stations and corresponding category.
     Creates a JSON dictionary containing the data split of the stations.
     """
+    test_frac = (1 - train_frac) / 2
+    train_val_frac = 1 - test_frac
 
     # NOTE: pandas is only used to keep track of each station lon and lat, which are used for plotting reasons.
-    data["station"] = data["station"].str.decode("utf8")
+    # data["station"] = data["station"].str.decode("utf8")
     stations_df = data[["station", "lat_sta", "lon_sta"]].groupby("station").agg("first").sort_values(by="station").reset_index()
     # create a list of all stations
     stations = stations_df["station"].tolist()
 
     # shuffle stations list assign a data category (train/val/test) to each entry
-    np.random.seed(10)  
+    seed = 2
+    np.random.seed(seed)  
     np.random.shuffle(stations)
     nstations = len(stations)
-    splits_dict = {station: (i / nstations > 0.6) + (i / nstations > 0.8) for i, station in enumerate(stations)}
+    train_stations = stations[:int(np.floor(nstations*train_frac))]
+    val_stations = stations[int(np.floor(nstations*train_frac)):int(np.floor(nstations*train_val_frac))]
+    test_stations = stations[int(np.floor(nstations*train_val_frac)):]
+    
+    assert len(train_stations) + len(val_stations) + len(test_stations) == nstations
+    
+    splits_dict = {station: 0.5*(station in val_stations) + (station in test_stations) for i, station in enumerate(stations)}
 
     fig, ax = plt.subplots()
     stations_df["split"] = stations_df["station"].map(splits_dict)
         
-    ax.scatter(stations_df["lon_sta"], stations_df["lat_sta"], c=stations_df["split"] / 2, cmap="viridis")
-    fig.savefig("outputs/split.png")
+    ax.scatter(stations_df["lon_sta"], stations_df["lat_sta"], c=stations_df["split"], cmap="viridis")
+    fig.savefig(f"outputs/splits_{seed}.png")
     
-    with open(split_file_path, 'w') as f:
-        json.dump(splits_dict, f)
+    np.save(splits_path + "train.npy", train_stations)
+    np.save(splits_path + "val.npy", val_stations)
+    np.save(splits_path + "test.npy", test_stations)
+
+
     
 
 if __name__ == "__main__":
@@ -40,4 +52,4 @@ if __name__ == "__main__":
     data = file[year][day]["all_data"]
     data = pd.DataFrame(data['station', 'lon_sta', 'lat_sta'])  
     
-    generate_split_train_val_test(data, "/cluster/work/igp_psr/dslab_FS25_data_and_weights/split_exp.json")
+    generate_split_train_val_test(data, "/cluster/work/igp_psr/dslab_FS25_data_and_weights/")
