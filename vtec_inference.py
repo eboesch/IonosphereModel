@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/322/ccl_2024322_30_5.h5"
 checkpoint_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/model_1_4.pth"
-# datapath = "V:/courses/dslab/team16/data/2023/020/ccl_2023020_30_5.h5"
+#datapath = "ccl_2024322_30_5.h5"
 
 def get_data(datapath: str) -> pd.DataFrame:
     file = h5py.File(datapath, 'r')
@@ -75,8 +75,8 @@ def split_train_val_test(data: pd.DataFrame) -> pd.DataFrame:
 def extract_features_vtec(data: pd.DataFrame) -> pd.DataFrame:
     logger.info("Extracting sin/cos features...")
     
-    data['sm_lat_ipp'] = data["sm_lat_sta"]
-    data['sm_lon_ipp'] = data["sm_lon_sta"]
+    #data['sm_lat_ipp'] = data["sm_lat_sta"]
+    #data['sm_lon_ipp'] = data["sm_lon_sta"]
     data['sm_lon_ipp_s'] = np.sin(2 * np.pi * data['sm_lon_ipp'] / 360)
     data['sm_lon_ipp_c'] = np.cos(2 * np.pi * data['sm_lon_ipp'] / 360)
     data['sod_s'] = np.sin(2 * np.pi * data['sod'] / 86400) 
@@ -116,87 +116,87 @@ def test(dataloader, model, device):
     
     lat_list = []
     lon_list = []
+    sod_list = []
     pred_list = []
-    y_list = []
     with torch.no_grad():
-        for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
+        for X in dataloader:
+            X = X[0].to(device)
             pred = model(X[:,:-2]).squeeze(1)
             
-            lat_list += X[:,-2].tolist()
-            lon_list += X[:,-1].tolist()
+            lat_list += X[:,0].tolist()
+            lon_list += X[:,-2].tolist()
+            sod_list += X[:,-1].tolist()
             pred_list += pred.tolist()
-            y_list += y.tolist()
     
     df = pd.DataFrame()
-    df["sat_lat"] = lat_list
-    df["sat_lon"] = lon_list
-    df["pred_vtec"] = pred_list
-    df["gt_vtec"] = y_list
+    df["sta_lat"] = lat_list
+    df["sta_lon"] = lon_list
+    df["sod"] = sod_list
+    df["pred_stec"] = pred_list
     return df
 
 
 
 
 
-if __name__ == "__main__":
-    if not os.path.exists("outputs"): 
-        os.makedirs("outputs")
-                    
-    torch.manual_seed(10)
-    logging.basicConfig(filename='outputs/FCN.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
-    logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
+#if __name__ == "__main__":
+if not os.path.exists("outputs"): 
+    os.makedirs("outputs")
 
-    device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
-    logger.info("Using %s device", device)
+torch.manual_seed(10)
+logging.basicConfig(filename='outputs/FCN.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
+logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
 
-    learning_rate = 1e-3
-    batch_size = 64
-    epochs = 10
+device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
+logger.info("Using %s device", device)
 
-    logger.info("Loading Data...")
-    data = get_data(datapath)
-    data = split_train_val_test(data)
-    data = extract_features_vtec(data)
-    features = ['sm_lat_ipp', 'sm_lon_ipp_s', 'sm_lon_ipp_c', 'sod_s', 'sod_c', 'satele','satazi_s', 'satazi_c', 'lat_sta', 'lon_sta']
+learning_rate = 1e-3
+batch_size = 64
+epochs = 10
 
-    logger.info("Loading Data into tensors...")
-    X = torch.tensor(data[features].values, device=device, dtype=torch.float64)
-    y = torch.tensor(data['vtec'].values, device=device, dtype=torch.float64).unsqueeze_(-1)
+logger.info("Loading Data...")
+og_data = get_data(datapath)
 
-    logger.info("Creating Tensor Datasets...")
-    dataset_train = TensorDataset(X[data['split'] == 0], y[data['split'] == 0])
-    dataset_val = TensorDataset(X[data['split'] == 1], y[data['split'] == 1])
-    dataset_test = TensorDataset(X[data['split'] == 2], y[data['split'] == 2])
+new_lat = []
+new_lon = []
+new_sod = []
+for lat in range(-89,90):
+    for lon in range(-179,180):
+        for s in range(0,86370,60):
+            new_lat.append(lat)
+            new_lon.append(lon)
+            new_sod.append(s)
+
+data = pd.DataFrame()
+data["sm_lat_sta"] = new_lat
+data["sm_lon_sta"] = new_lon
+data["sm_lat_ipp"] = new_lat
+data["sm_lon_ipp"] = new_lon
+data["sod"] = new_sod  
+
+data["satazi"] = np.mean(og_data["satazi"])
+data["satele"] = np.mean(og_data["satele"])
+
+data = extract_features_vtec(data)
+features = ['sm_lat_ipp', 'sm_lon_ipp_s', 'sm_lon_ipp_c', 'sod_s', 'sod_c', 'satele','satazi_s', 'satazi_c',"sm_lon_ipp","sod"]
+
+logger.info("Loading Data into tensors...")
+X = torch.tensor(data[features].values, device=device, dtype=torch.float64)
+
+logger.info("Creating Tensor Dataset...")
+dataset = TensorDataset(X)
+
+logger.info("Preparing DataLoaders...")
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+logger.info("Setting up Model...")
     
-    logger.info("Preparing DataLoaders...")
-    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
-    dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
-    dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False)
+model = FCN().to(device)
+model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
+model.eval()
 
+logger.info("Model: %s", model)
 
-    logger.info("Setting up Model...")
-    
-    model = FCN().to(device)
-    model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
-    model.eval()
-    
-    logger.info("Model: %s", model)
-
-        
-    logger.info("Running inference on test")
-    test_df = test(dataloader_test, model, device)
-    test_df.to_csv("outputs/test_inference.csv",index=False)
-    
-    
-    logger.info("Running inference on validation")
-    val_df = test(dataloader_val, model, device)
-    val_df.to_csv("outputs/val_inference.csv",index=False)
-        
-    logger.info("Running inference on train")
-    train_df = test(dataloader_train, model, device)
-    train_df.to_csv("outputs/train_inference.csv",index=False)
-
-
-    logger.info("Completed.")
-    
+logger.info("Running inference")
+test(dataloader, model, device).to_csv("outputs/vtec_grid.csv",index=False)
+logger.info("Done")
