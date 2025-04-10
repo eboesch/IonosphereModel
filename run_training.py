@@ -20,7 +20,7 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
-datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 301)]
+datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 320)]
 dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 
 
@@ -61,11 +61,11 @@ if __name__ == "__main__":
     logger.info(f"datapaths: {datapaths}")
 
     
-    dataset_train = DatasetGNSS(datapaths, "train")
+    dataset_train = DatasetGNSS(datapaths, "train", logger)
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = DatasetGNSS(datapaths, "val")
-    dataset_test = DatasetGNSS(datapaths, "test")
+    dataset_val = DatasetGNSS(datapaths, "val", logger)
+    dataset_test = DatasetGNSS(datapaths, "test", logger)
 
     
     logger.info("Preparing DataLoaders...")

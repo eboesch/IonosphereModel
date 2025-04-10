@@ -4,6 +4,7 @@ import tables
 import os
 import numpy as np
 from numpy.typing import NDArray
+from logging import Logger
 
 
 def get_features_from_row(row: NDArray, doy: str):
@@ -28,7 +29,7 @@ def get_features_from_row(row: NDArray, doy: str):
 
 class DatasetGNSS(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -53,7 +54,7 @@ class DatasetGNSS(Dataset):
         for datapath in datapaths:            
             if not(os.path.isfile(datapath)):
                 # delete this day from datapaths, as there is no data available for that day 
-                print("Skipping", datapath)
+                logger.info(f"Skipping {datapath}")
                 continue
             
             # extract year and doy from datapath
@@ -79,6 +80,7 @@ class DatasetGNSS(Dataset):
                 }
             )
             current_start_point += len(indices)
+            logger.info(f"Completed {datapath}")
             
         self.length = current_start_point
             
