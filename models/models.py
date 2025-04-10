@@ -1,5 +1,15 @@
 from torch import nn
 import torch.nn.functional as F
+from typing import Any
+
+
+def get_model_class_from_string(model_str: str) -> Any:
+    if model_str == "FCN":
+        return FCN
+    
+    else:
+        assert False, f"model class {model_str} is not supported."
+
 
 class FCN(nn.Module):
     """

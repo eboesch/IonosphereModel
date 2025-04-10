@@ -1,3 +1,5 @@
 /venv
 /.vscode
 /outputs
+file.err
+file.out

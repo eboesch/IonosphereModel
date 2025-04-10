@@ -12,15 +12,16 @@ from torch.utils.data import DataLoader
 from dataset.dataset import DatasetGNSS
 from evaluation.test import test
 from datetime import datetime
-from models.models import FCN
+from models.models import get_model_class_from_string
 from training.training import train_single_epoch
+import yaml
+import shutil
 
 logger = logging.getLogger(__name__)
 
 
-datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 302)]
+datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 301)]
 dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-# datapath = "V:/courses/dslab/team16/data/2023/020/ccl_2023020_30_5.h5"
 
 
 
@@ -36,6 +37,16 @@ if __name__ == "__main__":
     assert not os.path.exists(model_path), f"Training ID {training_id} already exists"
           
     os.makedirs(model_path)
+    
+    config_path = "config/training_config.yaml"
+    with open(config_path, 'r') as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+    shutil.copy(config_path, model_path + "training_config.yaml")
+    learning_rate = config["learning_rate"]
+    batch_size = config["batch_size"]
+    epochs = config["epochs"]
+    model_type = config["model_type"]
+    num_workers = config["num_workers"]
 
     torch.manual_seed(10)
     logging.basicConfig(filename=model_path + 'logs.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
@@ -44,13 +55,10 @@ if __name__ == "__main__":
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
     logger.info("Using %s device", device)
 
-    learning_rate = 1e-3
-    batch_size = 64
-    epochs = 1
-    
     logger.info(f"learning_rate: {learning_rate}")
     logger.info(f"batch_size: {batch_size}")
     logger.info(f"epochs: {epochs}")
+    logger.info(f"datapaths: {datapaths}")
 
     
     dataset_train = DatasetGNSS(datapaths, "train")
@@ -61,13 +69,14 @@ if __name__ == "__main__":
 
     
     logger.info("Preparing DataLoaders...")
-    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
-    dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
-    dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False)
+    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
 
     logger.info("Setting up Model...")
-    model = FCN(input_features).to(device)
+    model_class = get_model_class_from_string(model_type)
+    model = model_class(input_features).to(device)
     logger.info("Model: %s", model)
 
     loss = nn.MSELoss()
