@@ -1,6 +1,6 @@
 # IonosphereModel
 In order to run execute:
-1.  module load stack/2024-06 python/3.11.6
+1.  module load stack/2024-06 python/3.12.8
 2.  python -m venv ./venv
 3.  source venv/bin/activate
 4.  pip install -r requirements.txt

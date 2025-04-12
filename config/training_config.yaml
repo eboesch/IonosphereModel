@@ -3,3 +3,10 @@ batch_size: 1024
 epochs: 10
 num_workers: 4
 model_type: "FCN"
+
+year: 2024
+doy: 300
+num_days: 10
+
+datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
+dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"

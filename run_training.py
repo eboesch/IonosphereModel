@@ -20,7 +20,7 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
-datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 320)]
+# datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 320)]
 dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 
 
@@ -58,8 +58,15 @@ if __name__ == "__main__":
     logger.info(f"learning_rate: {learning_rate}")
     logger.info(f"batch_size: {batch_size}")
     logger.info(f"epochs: {epochs}")
-    logger.info(f"datapaths: {datapaths}")
+    # logger.info(f"datapaths: {datapaths}")
 
+    doy = config["doy"]
+    year = config["year"]
+    n = config["num_days"]
+    logger.info(f"date range: {doy} until {doy+n-1} of {year}")
+    assert doy + n <= 366, "Date range reaches end of year. Currently not supported."
+
+    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/{year}/{doy+i}/ccl_{year}{doy+i}_30_5.h5" for i in range(n)]
     
     dataset_train = DatasetGNSS(datapaths, "train", logger)
     x, y = dataset_train[0]
