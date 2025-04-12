@@ -16,6 +16,7 @@ from models.models import get_model_class_from_string
 from training.training import train_single_epoch
 import yaml
 import shutil
+import tables
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 
 
 if __name__ == "__main__":
-    print("HELLO")
+    print(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
     if not os.path.exists(dslab_path + "models"): 
         os.makedirs(dslab_path + "models")
 
@@ -48,6 +49,10 @@ if __name__ == "__main__":
     model_type = config["model_type"]
     num_workers = config["num_workers"]
 
+    # # disabling pytables cache (experiment)
+    # tables.parameters.CHUNK_CACHE_NELMTS = 0
+    # tables.parameters.CHUNK_CACHE_PREEMPT = 0
+
     torch.manual_seed(10)
     logging.basicConfig(filename=model_path + 'logs.log', level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
     logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
@@ -68,13 +73,15 @@ if __name__ == "__main__":
 
     datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/{year}/{doy+i}/ccl_{year}{doy+i}_30_5.h5" for i in range(n)]
     
+    print("get datasets")
+
     dataset_train = DatasetGNSS(datapaths, "train", logger)
     x, y = dataset_train[0]
     input_features = x.shape[0]
     dataset_val = DatasetGNSS(datapaths, "val", logger)
     dataset_test = DatasetGNSS(datapaths, "test", logger)
 
-    
+    print("get dataloaders")
     logger.info("Preparing DataLoaders...")
     dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -89,6 +96,7 @@ if __name__ == "__main__":
     loss = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+    print("start training")
     logger.info("Starting training...")
     best_val_loss = float('inf')
     for t in range(epochs):
