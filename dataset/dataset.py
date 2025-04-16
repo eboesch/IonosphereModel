@@ -62,16 +62,10 @@ class DatasetGNSS(Dataset):
             year = datapath.split('/')[-3]
             doy = datapath.split('/')[-2]
             
-            start = time.time()
             file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
-            print(f"1.1 open file time: {time.time() - start}s")
-            start = time.time()
             data = file.get_node(f"/{year}/{doy}/all_data")
-            print(f"1.2 get node/file time: {time.time() - start}s")
 
-            start = time.time()
             indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
-            print(f"1.3 get indices time: {time.time() - start}s")
             # add add additional features to data
             self.datapaths_info.append(
                 {
@@ -85,7 +79,7 @@ class DatasetGNSS(Dataset):
                 }
             )
             current_start_point += len(indices)
-            logger.info(f"Completed {datapath}")
+            # logger.info(f"Completed {datapath}")
             
         self.length = current_start_point
             
@@ -118,13 +112,12 @@ class DatasetGNSS(Dataset):
         indices = datapath_info['indices']
         start_point = datapath_info['start_point']
 
-        start = time.time()
         data = datapath_info['data']
-        print(f"2.1 Fetch data from dictionary: {time.time() - start}s")
 
         start = time.time()    
         row = data[indices[index - start_point]]
-        print(f"2.2 Access data by index time: {time.time() - start}s")
+        if np.random.rand() > 0.9:
+            print(f"Access data by index time: {time.time() - start}s")
         
         # save the data in a tensor and creat
         x, y = get_features_from_row(row, doy)
