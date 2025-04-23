@@ -3,3 +3,4 @@
 /outputs
 file.err
 file.out
+**/__pycache__/

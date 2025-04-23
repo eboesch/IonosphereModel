@@ -6,7 +6,6 @@ import numpy as np
 from numpy.typing import NDArray
 from logging import Logger
 import logging
-
 import h5py
 import time
 import psutil
@@ -112,11 +111,9 @@ class DatasetGNSS(Dataset):
             year = datapath.split('/')[-3]
             doy = datapath.split('/')[-2]
             
-            
             file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
             data = file.get_node(f"/{year}/{doy}/all_data")
 
-            
             indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
             # add add additional features to data
             # del data
@@ -138,7 +135,7 @@ class DatasetGNSS(Dataset):
                 }
             )
             current_start_point += len(indices)
-            logger.info(f"Completed {datapath}")
+            # logger.info(f"Completed {datapath}")
             
         self.length = current_start_point
             
@@ -170,6 +167,7 @@ class DatasetGNSS(Dataset):
         doy = datapath_info['doy']
         indices = datapath_info['indices']
         start_point = datapath_info['start_point']
+
         data = datapath_info['data']
         # if np.random.rand() > 0.98:
         #     row = monitor_access(data, indices[index - start_point])
