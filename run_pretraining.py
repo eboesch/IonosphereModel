@@ -9,7 +9,7 @@ import logging
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
-from dataset.dataset import DatasetGNSS
+from dataset.dataset import DatasetReorganized
 from evaluation.test import test
 from datetime import datetime
 from models.models import get_model_class_from_string
@@ -20,20 +20,22 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
-datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 312)]
 dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
+datapaths_train = [dslab_path + f"reorganized_data/2023-{i}-train.h5" for i in range(1, 13)]
+datapaths_val = [dslab_path + f"reorganized_data/2023-{i}-val.h5" for i in range(1, 13)]
+datapaths_test = [dslab_path + f"reorganized_data/2023-{i}-test.h5" for i in range(1, 13)]
 
 
 
 if __name__ == "__main__":
     print("HELLO")
-    if not os.path.exists(dslab_path + "models"): 
-        os.makedirs(dslab_path + "models")
+    if not os.path.exists(dslab_path + "pretrained_models"): 
+        os.makedirs(dslab_path + "pretrained_models")
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     training_id = "model_" + timestamp
 
-    model_path = dslab_path + "models/" + training_id + "/"
+    model_path = dslab_path + "pretrained_models/" + training_id + "/"
     assert not os.path.exists(model_path), f"Training ID {training_id} already exists"
           
     os.makedirs(model_path)
@@ -41,7 +43,7 @@ if __name__ == "__main__":
     config_path = "config/training_config.yaml"
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
-    shutil.copy(config_path, model_path + "trainig_config.yaml")
+    shutil.copy(config_path, model_path + "training_config.yaml")
     learning_rate = config["learning_rate"]
     batch_size = config["batch_size"]
     epochs = config["epochs"]
@@ -58,14 +60,13 @@ if __name__ == "__main__":
     logger.info(f"learning_rate: {learning_rate}")
     logger.info(f"batch_size: {batch_size}")
     logger.info(f"epochs: {epochs}")
-    logger.info(f"datapaths: {datapaths}")
-
-    
-    dataset_train = DatasetGNSS(datapaths, "train", logger)
+    logger.info(f"datapaths: {datapaths_train}")
+  
+    dataset_train = DatasetReorganized(datapaths_train, logger)
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = DatasetGNSS(datapaths, "val", logger)
-    dataset_test = DatasetGNSS(datapaths, "test", logger)
+    dataset_val = DatasetReorganized(datapaths_val, logger)
+    dataset_test = DatasetReorganized(datapaths_test, logger)
 
     
     logger.info("Preparing DataLoaders...")
