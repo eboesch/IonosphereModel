@@ -4,7 +4,6 @@ import numpy as np
 from tqdm import tqdm
 import shutil
 import yaml
-np.random.seed(10)
 
 
 class TableDescription(tables.IsDescription):
@@ -32,7 +31,7 @@ class TableDescription(tables.IsDescription):
     gfphase = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=15)
 
 
-def get_expected_rows(group, subsampling_ratio=0.05):
+def get_expected_rows(group, subsampling_ratio):
     rows_per_raw_day = 20e6
     row_fraction = 0.7 if group == "train" else (0.2 if group == "test" else 0.1)
     month_max_days = 31
@@ -47,11 +46,11 @@ if __name__ == "__main__":
     
     subsampling_ratio = config["subsampling_ratio"]
     years_dict = config["years"]
-    output_path = config["dslab_path"] + config["output_dir_name"]
+    output_path = config["dslab_path"] + config["output_dir_name"] + "/"
     datapath = config["datapath"]
-
-    shutil.copy(config_path, output_path + "/reorganize_data_config.yaml")
+    
     os.makedirs(output_path, exist_ok=True)
+    shutil.copy(config_path, output_path + "reorganize_data_config.yaml")
     leap_years = [2020, 2024]
 
     for year, months_in_year in years_dict.items():
@@ -66,7 +65,7 @@ if __name__ == "__main__":
         datapaths_per_month = []
         for last_index, index in zip([0] + month_indices[:-1], month_indices):
             datapaths_per_month.append(
-                [datapath + f"{year}/{str(doi + 1).zfill(3)}/ccl_{year}{str(doi + 1).zfill(3)}_30_5.h5" for doi in range(last_index, index)]
+                [datapath + f"{year}/{str(doy + 1).zfill(3)}/ccl_{year}{str(doy + 1).zfill(3)}_30_5.h5" for doy in range(last_index, index)]
             )
         
         for month_idx, datapaths in enumerate(datapaths_per_month):
@@ -80,7 +79,7 @@ if __name__ == "__main__":
                 if os.path.exists(month_output_path):
                     print(f"skipping {month_output_path}")
                     continue
-
+                
                 try:
                     out_h5 = tables.open_file(month_output_path, mode='w')
                     expectedrows = get_expected_rows(group, subsampling_ratio)
@@ -90,6 +89,7 @@ if __name__ == "__main__":
                             in_h5 = tables.open_file(datapath, mode='r')
                             doy = datapath.split('/')[-2]
                             data = in_h5.get_node(f"/{year}/{doy}/all_data")
+                            np.random.seed(10 + month + int(doy) + year)
                             seconds = [int(30 / subsampling_ratio)*i + 30*np.random.randint(0, 20) for i in range(int(2880*subsampling_ratio))]
                             mask_subsampling = np.isin(data.col('sod'), seconds)
                             mask_stations = np.isin(data.col('station'), stations)
