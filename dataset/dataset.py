@@ -5,9 +5,61 @@ import os
 import numpy as np
 from numpy.typing import NDArray
 from logging import Logger
+import logging
+
+import h5py
+import time
+import psutil
+import os
+
+def monitor_access(data, index):
+    # Record time and CPU info before access
+    process = psutil.Process(os.getpid())
+    before_io = psutil.disk_io_counters()
+    before_cpu = process.cpu_times()
+    before_mem = process.memory_info()
+    start = time.perf_counter()
+    before_net = psutil.net_io_counters()
+
+    # Actual data access
+    row = data[index]
+
+    end = time.perf_counter()
+    after_io = psutil.disk_io_counters()
+    after_cpu = process.cpu_times()
+    after_mem = process.memory_info()
+    
+    # ...
+    after_net = psutil.net_io_counters()
+    net_bytes = after_net.bytes_recv - before_net.bytes_recv
+    net_kb = net_bytes / 1024
+
+    # Metrics
+    duration = end - start
+    io_read_bytes = after_io.read_bytes - before_io.read_bytes
+    cpu_time = (after_cpu.user + after_cpu.system) - (before_cpu.user + before_cpu.system)
+    memory_used_mb = after_mem.rss / 1024**2
+    delta_mem = (after_mem.rss - before_mem.rss) / 1024**2  # In MB
+
+    print(f"Index: {index}")
+    print(f"  Access time: {duration:.4f} sec")
+    print(f"  Disk read: {io_read_bytes / 1024:.1f} KB")
+    print(f"  CPU time: {cpu_time:.4f} sec")
+    print(f"  RAM used: {memory_used_mb:.1f} MB")
+    print(f"  RAM delta: {delta_mem:+.1f} MB (RSS)")
+    print(f"  network: {net_kb}")
+    print("---")
+
+    return row
 
 
-def get_features_from_row(row: NDArray, doy: str):
+def get_features_from_row(row: NDArray, doy: float|None, month: float|None, year: float|None):
+    time_features = []
+    for time_feature in [doy, month, year]:
+        if time_feature is not None:
+            time_features.append(time_feature)
+    
+    
     x = torch.tensor(
             [
                 row['sm_lat_ipp'],
@@ -18,8 +70,7 @@ def get_features_from_row(row: NDArray, doy: str):
                 np.sin(2 * np.pi * row['satazi'] / 360),
                 np.cos(2 * np.pi * row['satazi'] / 360),
                 row['satele'],
-                float(doy)
-            ],
+            ] + time_features,
             dtype=torch.float32
         )
     y = torch.tensor([row['stec']]) # label
@@ -68,6 +119,13 @@ class DatasetGNSS(Dataset):
             
             indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
             # add add additional features to data
+            # del data
+            # del file
+            
+            # file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
+            # data = file.get_node(f"/{year}/{doy}/all_data")
+            
+            
             self.datapaths_info.append(
                 {
                     "datapath": datapath,
@@ -113,10 +171,15 @@ class DatasetGNSS(Dataset):
         indices = datapath_info['indices']
         start_point = datapath_info['start_point']
         data = datapath_info['data']
+        # if np.random.rand() > 0.98:
+        #     row = monitor_access(data, indices[index - start_point])
+        # else:
+        #     row = data[indices[index - start_point]]
+
+
         row = data[indices[index - start_point]]
-        
         # save the data in a tensor and creat
-        x, y = get_features_from_row(row, doy)
+        x, y = get_features_from_row(row, float(doy), None, None)
         
         return x, y
         
@@ -129,10 +192,100 @@ class DatasetGNSS(Dataset):
     def __del__(self):
         for datapath_info in self.datapaths_info:
             datapath_info["file"].close()
+
+
+
+class DatasetReorganized(Dataset):
+    def __init__(self, datapaths: list[str], logger: Logger):
+        self.data = []
+        current_start_point = 0
+        self.datapaths_info = []
+
+        for datapath in datapaths:            
+            if not(os.path.isfile(datapath)):
+                logger.info(f"Skipping {datapath}")
+                continue
+            
+            filename =  datapath.split('/')[-1]
+            year = filename.split('-')[0]
+            month = datapath.split('-')[1]
+
+            # try:
+            #     file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
+            #     data = file.get_node(f"/all_data")
+            # except:
+            #     logger.info(f"Skipping corrupted {datapath}")
+            #     continue
+            try:
+                file = h5py.File(datapath, 'r')
+                data = file["all_data"][:]
+            except:
+                continue
+
+            self.datapaths_info.append(
+                {
+                    "datapath": datapath,
+                    "file": file,
+                    "data": data,
+                    "start_point": current_start_point,
+                    "year": year,
+                    "month": month
+                }
+            )
+            current_start_point += data.shape[0]
+            logger.info(f"Completed {datapath}")
+            
+        self.length = current_start_point
+
+    def __getitem__(self, index: int) -> tuple[torch.tensor, torch.tensor]:
+        """
+        Loads and returns a sample from the dataset at the given index as a tensor. 
+        Features are transformed as necessary. 
+        """
+        # iterate through all datapaths to find the file that contains our desired index
+        for curr_datapath_info, next_datapath_info in zip(self.datapaths_info[:-1], self.datapaths_info[1:]):
+            if next_datapath_info['start_point'] > index:
+                datapath_info = curr_datapath_info
+                break
+        else:
+            datapath_info = self.datapaths_info[-1]
+
+        start_point = datapath_info['start_point']
+        data = datapath_info['data']
+
+        year = datapath_info['year']
+        month = datapath_info['month']
+
+        row = data[index - start_point]
+        doy = row['gfphase']
+
+        x, y = get_features_from_row(row, doy, float(month), None)
+        
+        return x, y
+
+
+    def __len__(self):
+        """
+        Returns length of the dataset in use.
+        """
+        return self.length
     
-    
+    def __del__(self):
+        for datapath_info in self.datapaths_info:
+            datapath_info["file"].close()
+            
+
+
 if __name__ == "__main__":
-    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doi).zfill(3)}/ccl_2024{str(doi).zfill(3)}_30_5.h5" for doi in range(1, 3)]
-    train_dataset = DatasetGNSS(datapaths, "train")
-    print(train_dataset[10])
+    logger = logging.getLogger(__name__)
+
+    # datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doi).zfill(3)}/ccl_2024{str(doi).zfill(3)}_30_5.h5" for doi in range(1, 3)]
+    # train_dataset = DatasetGNSS(datapaths, "train", logger)
+    # for i in range(100):
+    #     print(train_dataset[i])
+    # train_dataset.__del__()
+    dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
+    datapaths_train = [dslab_path + f"reorganized_data/2023-{i}-train.h5" for i in range(1, 12)]
+    train_dataset = DatasetReorganized(datapaths_train, logger)
+    train_dataset[10]
     train_dataset.__del__()
