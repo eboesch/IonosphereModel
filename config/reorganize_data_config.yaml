@@ -1,9 +1,9 @@
 datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-output_dir_name: "reorganized_data_2"
+output_dir_name: "reorganized_data_3"
 years:
-  - 2022: "all"
-  - 2023: "all"
-  - 2024: "all"
+  2022: "all"
+  2023: "all"
+  2024: "all"
 subsampling_ratio: 0.02
 

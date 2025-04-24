@@ -88,9 +88,6 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
     return file, data
 
 
-
-
-
 class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
     def __init__(self, datapaths: list[str], split: str, logger: Logger):
@@ -194,7 +191,7 @@ class DatasetIndices(Dataset):
 
 
 class DatasetReorganized(Dataset):
-    def __init__(self, datapaths: list[str], logger: Logger, pytables: bool):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool):
         current_start_point = 0
         self.datapaths_info = []
 

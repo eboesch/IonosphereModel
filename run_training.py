@@ -1,53 +1,50 @@
-import h5py
-import json
 import os
 import pandas as pd
-import numpy as np
 import torch
 from torch import nn
 import logging
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
-from dataset.dataset import DatasetIndices
+from dataset.dataset import DatasetIndices, DatasetReorganized
 from evaluation.test import test
 from datetime import datetime
 from models.models import get_model_class_from_string
 from training.training import train_single_epoch
 import yaml
 import shutil
-import tables
+import glob
+
 
 logger = logging.getLogger(__name__)
 
 
-# datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{doi}/ccl_2024{doi}_30_5.h5" for doi in range(300, 320)]
-dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-
-
-
 if __name__ == "__main__":
-    print("Started ", datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    if not os.path.exists(dslab_path + "models"): 
-        os.makedirs(dslab_path + "models")
-
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    training_id = "model_" + timestamp
+    print("Started ", timestamp)
 
-    model_path = dslab_path + "models/" + training_id + "/"
-    assert not os.path.exists(model_path), f"Training ID {training_id} already exists"
-          
-    os.makedirs(model_path)
-    
     config_path = "config/training_config.yaml"
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
+    dslab_path = config["training_config"]
+    models_path = dslab_path + config["models_dir_name"] + "/"
+
+    if not os.path.exists(models_path): 
+        os.makedirs(models_path)
+
+    training_id = "model_" + timestamp
+
+    model_path = models_path + training_id + "/"
+    assert not os.path.exists(model_path), f"Training ID {training_id} already exists"
+          
+    os.makedirs(model_path)
     shutil.copy(config_path, model_path + "trainig_config.yaml")
+
     learning_rate = config["learning_rate"]
     batch_size = config["batch_size"]
     epochs = config["epochs"]
-    model_type = config["model_type"]
     num_workers = config["num_workers"]
+    use_reorganized_data = config["use_reorganized_data"]
 
 
     torch.manual_seed(10)
@@ -61,23 +58,42 @@ if __name__ == "__main__":
     logger.info(f"batch_size: {batch_size}")
     logger.info(f"epochs: {epochs}")
 
+    if use_reorganized_data:
+        reorganized_datapath = config["dslab_path"] + config["reorganized_data_dir_name"] + "/"
+        years_dict = config["years"]
+        datapaths_train = []
+        datapaths_val = []
+        datapaths_test = []
 
-    doy = config["start_doy"]
-    year = config["year"]
-    n = config["num_days"]
-    logger.info(f"date range: {doy} until {doy+n-1} of {year}")
-    assert doy + n <= 366, "Date range reaches end of year. Currently not supported."
+        for year, months_in_year in years_dict.items():
+            if months_in_year != "all":
+                # TODO implement logic in case we dont want to select all months
+                raise NotImplementedError
+            
+            datapaths_train += glob.glob(reorganized_datapath + f"{year}*train.h5")
+            datapaths_val += glob.glob(reorganized_datapath + f"{year}*val.h5")
+            datapaths_test += glob.glob(reorganized_datapath + f"{year}*test.h5")
+        dataset_class = DatasetReorganized
 
-    datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/{year}/{str(doy+i).zfill(3)}/ccl_{year}{str(doy+i).zfill(3)}_30_5.h5" for i in range(n)]
-    
+    else:
+        datapath = config["datapath"]
+        doy = config["start_doy"]
+        year = config["year"]
+        n = config["num_days"]
+        logger.info(f"date range: {doy} until {doy+n-1} of {year}")
+        assert doy + n <= 366, "Date range reaches end of year. Currently not supported."
+        datapaths = [datapath + f"{year}/{str(doy+i).zfill(3)}/ccl_{year}{str(doy+i).zfill(3)}_30_5.h5" for i in range(n)]
+        datapaths_train = datapaths_val = datapaths_test = datapaths
+        dataset_class = DatasetIndices
+
     print("get datasets")
 
-    dataset_train = DatasetIndices(datapaths, "train", logger, pytables=True)
+    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=True)
     print(f"Total length = {dataset_train.__len__()*1e-6:.2f} Mil")
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = DatasetIndices(datapaths, "val", logger, pytables=True)
-    dataset_test = DatasetIndices(datapaths, "test", logger, pytables=True)
+    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=True)
+    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=True)
 
     print("get dataloaders")
     logger.info("Preparing DataLoaders...")
@@ -87,9 +103,14 @@ if __name__ == "__main__":
 
 
     logger.info("Setting up Model...")
-    model_class = get_model_class_from_string(model_type)
-    model = model_class(input_features, config["num_hidden_layers"], config["hidden_size"]).to(device)
-    logger.info("Model: %s", model)
+    pretrained_model_path = config["pretrained_model_path"]
+    if pretrained_model_path is None:
+        model_type = config["model_type"]
+        model_class = get_model_class_from_string(model_type)
+        model = model_class(input_features, config["num_hidden_layers"], config["hidden_size"]).to(device)
+        logger.info("Model: %s", model)
+    else:
+        model = torch.load(pretrained_model_path, weights_only=False)
 
     loss = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
