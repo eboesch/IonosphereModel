@@ -11,6 +11,7 @@ import time
 import psutil
 import os
 
+
 def monitor_access(data, index):
     # Record time and CPU info before access
     process = psutil.Process(os.getpid())
@@ -76,8 +77,21 @@ def get_features_from_row(row: NDArray, doy: float|None, month: float|None, year
     return x, y
 
 
+def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
+    if pytables:
+        file = tables.open_file(filepath, mode='r', driver='H5FD_SEC2')
+        data = file.get_node(nodepath)
+    else:
+        file = h5py.File(filepath, 'r')
+        data = file[nodepath][:]
 
-class DatasetGNSS(Dataset):
+    return file, data
+
+
+
+
+
+class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
     def __init__(self, datapaths: list[str], split: str, logger: Logger):
         """
@@ -93,12 +107,8 @@ class DatasetGNSS(Dataset):
         self.datapaths_info = []
         with open(f"dataset/{split}.list", "r") as file:
             self.stations = [line.strip().encode('utf8') for line in file]
-            
-        # In order to save the stations to json format, I had to map them from bytes to strings.
-        # We now remap them to bytes
-        # TODO: Find a better way to do this
+
         current_start_point = 0
-        self.data = []
 
 
         for datapath in datapaths:            
@@ -111,17 +121,8 @@ class DatasetGNSS(Dataset):
             year = datapath.split('/')[-3]
             doy = datapath.split('/')[-2]
             
-            file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
-            data = file.get_node(f"/{year}/{doy}/all_data")
-
+            file, data = get_file_and_data(datapath, f"/{year}/{doy}/all_data", pytables)
             indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
-            # add add additional features to data
-            # del data
-            # del file
-            
-            # file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
-            # data = file.get_node(f"/{year}/{doy}/all_data")
-            
             
             self.datapaths_info.append(
                 {
@@ -163,7 +164,6 @@ class DatasetGNSS(Dataset):
         else:
             datapath_info = self.datapaths_info[-1]
 
-        # year = datapath_info['year']
         doy = datapath_info['doy']
         indices = datapath_info['indices']
         start_point = datapath_info['start_point']
@@ -194,8 +194,7 @@ class DatasetGNSS(Dataset):
 
 
 class DatasetReorganized(Dataset):
-    def __init__(self, datapaths: list[str], logger: Logger):
-        self.data = []
+    def __init__(self, datapaths: list[str], logger: Logger, pytables: bool):
         current_start_point = 0
         self.datapaths_info = []
 
@@ -208,17 +207,7 @@ class DatasetReorganized(Dataset):
             year = filename.split('-')[0]
             month = datapath.split('-')[1]
 
-            # try:
-            #     file = tables.open_file(datapath, mode='r', driver='H5FD_SEC2')
-            #     data = file.get_node(f"/all_data")
-            # except:
-            #     logger.info(f"Skipping corrupted {datapath}")
-            #     continue
-            try:
-                file = h5py.File(datapath, 'r')
-                data = file["all_data"][:]
-            except:
-                continue
+            file, data = get_file_and_data(datapath, "all_data", pytables)
 
             self.datapaths_info.append(
                 {
@@ -282,6 +271,7 @@ if __name__ == "__main__":
     # for i in range(100):
     #     print(train_dataset[i])
     # train_dataset.__del__()
+
     dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
     datapaths_train = [dslab_path + f"reorganized_data/2023-{i}-train.h5" for i in range(1, 12)]
     train_dataset = DatasetReorganized(datapaths_train, logger)

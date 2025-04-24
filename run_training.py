@@ -9,7 +9,7 @@ import logging
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
-from dataset.dataset import DatasetGNSS
+from dataset.dataset import DatasetIndices
 from evaluation.test import test
 from datetime import datetime
 from models.models import get_model_class_from_string
@@ -72,12 +72,12 @@ if __name__ == "__main__":
     
     print("get datasets")
 
-    dataset_train = DatasetGNSS(datapaths, "train", logger)
+    dataset_train = DatasetIndices(datapaths, "train", logger, pytables=True)
     print(f"Total length = {dataset_train.__len__()*1e-6:.2f} Mil")
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = DatasetGNSS(datapaths, "val", logger)
-    dataset_test = DatasetGNSS(datapaths, "test", logger)
+    dataset_val = DatasetIndices(datapaths, "val", logger, pytables=True)
+    dataset_test = DatasetIndices(datapaths, "test", logger, pytables=True)
 
     print("get dataloaders")
     logger.info("Preparing DataLoaders...")
