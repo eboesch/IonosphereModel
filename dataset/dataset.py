@@ -90,7 +90,7 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
 
 class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, logger: Logger):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -119,7 +119,7 @@ class DatasetIndices(Dataset):
             doy = datapath.split('/')[-2]
             
             file, data = get_file_and_data(datapath, f"/{year}/{doy}/all_data", pytables)
-            indices = self._get_indices(data) #TODO: need to be sure that the given file actually exists
+            indices = self._get_indices(data, pytables) #TODO: need to be sure that the given file actually exists
             
             self.datapaths_info.append(
                 {
@@ -137,12 +137,15 @@ class DatasetIndices(Dataset):
             
         self.length = current_start_point
             
-    def _get_indices(self, data) -> NDArray:
+    def _get_indices(self, data, pytables) -> NDArray:
         """
         Returns the indices of all datapoints whose stations is in the current datasplit.
         """
         # select indices of datapoints whose stations that are in the current split
-        mask_for_split = np.isin(data.col('station'), self.stations) 
+        if pytables:
+            mask_for_split = np.isin(data.col('station'), self.stations) 
+        else:
+            mask_for_split = np.isin(data['station'], self.stations)
 
         indices = np.arange(0, len(mask_for_split), 1)[mask_for_split]
         del mask_for_split
@@ -204,7 +207,7 @@ class DatasetReorganized(Dataset):
             year = filename.split('-')[0]
             month = datapath.split('-')[1]
 
-            file, data = get_file_and_data(datapath, "all_data", pytables)
+            file, data = get_file_and_data(datapath, "/all_data", pytables)
 
             self.datapaths_info.append(
                 {

@@ -23,10 +23,10 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print("Started ", timestamp)
 
-    config_path = "config/training_config.yaml"
+    config_path = "config/pretraining_config.yaml"
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
-    dslab_path = config["training_config"]
+    dslab_path = config["dslab_path"]
     models_path = dslab_path + config["models_dir_name"] + "/"
 
     if not os.path.exists(models_path): 
@@ -45,6 +45,7 @@ if __name__ == "__main__":
     epochs = config["epochs"]
     num_workers = config["num_workers"]
     use_reorganized_data = config["use_reorganized_data"]
+    pytables = config["pytables"]
 
 
     torch.manual_seed(10)
@@ -88,12 +89,12 @@ if __name__ == "__main__":
 
     print("get datasets")
 
-    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=True)
+    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables)
     print(f"Total length = {dataset_train.__len__()*1e-6:.2f} Mil")
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=True)
-    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=True)
+    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables)
+    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables)
 
     print("get dataloaders")
     logger.info("Preparing DataLoaders...")
