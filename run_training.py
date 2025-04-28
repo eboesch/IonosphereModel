@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from dataset.dataset import DatasetIndices, DatasetReorganized
 from evaluation.test import test
 from datetime import datetime
-from models.models import get_model_class_from_string
+from models.models import get_model, load_pretrained_model
 from training.training import train_single_epoch
 import yaml
 import shutil
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print("Started ", timestamp)
 
-    config_path = "config/pretraining_config.yaml"
+    config_path = "config/training_config.yaml"
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     dslab_path = config["dslab_path"]
@@ -89,12 +89,12 @@ if __name__ == "__main__":
 
     print("get datasets")
 
-    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables)
+    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, optional_features=config['optional_features'])
     print(f"Total length = {dataset_train.__len__()*1e-6:.2f} Mil")
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables)
-    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables)
+    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables, optional_features=config['optional_features'])
+    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, optional_features=config['optional_features'])
 
     print("get dataloaders")
     logger.info("Preparing DataLoaders...")
@@ -107,14 +107,14 @@ if __name__ == "__main__":
     pretrained_model_path = config["pretrained_model_path"]
     if pretrained_model_path is None:
         model_type = config["model_type"]
-        model_class = get_model_class_from_string(model_type)
-        model = model_class(input_features, config["num_hidden_layers"], config["hidden_size"]).to(device)
+        model = get_model(config, input_features)
+        model = model.to(device)
         logger.info("Model: %s", model)
     else:
-        model = torch.load(pretrained_model_path, weights_only=False)
+        model = load_pretrained_model(pretrained_model_path)
 
     loss = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
 
     print("start training")
     logger.info("Starting training...")
@@ -128,10 +128,10 @@ if __name__ == "__main__":
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path + "model.pth")
-        else:
-            # validation loss is increasing, so we stop training
-            logger.info("Validation loss increased. Stopping training.")
-            break
+        # else:
+        #     # validation loss is increasing, so we stop training
+        #     logger.info("Validation loss increased. Stopping training.")
+        #     break
         
     logger.info("Training completed.")
 

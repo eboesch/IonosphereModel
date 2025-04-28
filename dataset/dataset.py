@@ -53,13 +53,7 @@ def monitor_access(data, index):
     return row
 
 
-def get_features_from_row(row: NDArray, doy: float|None, month: float|None, year: float|None):
-    time_features = []
-    for time_feature in [doy, month, year]:
-        if time_feature is not None:
-            time_features.append(time_feature)
-    
-    
+def get_features_from_row(row: NDArray, optional_features_values: list):    
     x = torch.tensor(
             [
                 row['sm_lat_ipp'],
@@ -70,7 +64,7 @@ def get_features_from_row(row: NDArray, doy: float|None, month: float|None, year
                 np.sin(2 * np.pi * row['satazi'] / 360),
                 np.cos(2 * np.pi * row['satazi'] / 360),
                 row['satele'],
-            ] + time_features,
+            ] + optional_features_values,
             dtype=torch.float32
         )
     y = torch.tensor([row['stec']]) # label
@@ -90,7 +84,7 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
 
 class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -101,12 +95,14 @@ class DatasetIndices(Dataset):
             stations :  list of all stations matching the given split type, encoded to bytes.
             lenght :    length of the Dataset
         """
+
+        self.optional_features = optional_features
+
         self.datapaths_info = []
         with open(f"dataset/{split}.list", "r") as file:
             self.stations = [line.strip().encode('utf8') for line in file]
 
         current_start_point = 0
-
 
         for datapath in datapaths:            
             if not(os.path.isfile(datapath)):
@@ -164,20 +160,21 @@ class DatasetIndices(Dataset):
         else:
             datapath_info = self.datapaths_info[-1]
 
-        doy = datapath_info['doy']
+        doy = float(datapath_info['doy'])
+        year = float(datapath_info['year'])
         indices = datapath_info['indices']
         start_point = datapath_info['start_point']
 
         data = datapath_info['data']
-        # if np.random.rand() > 0.98:
-        #     row = monitor_access(data, indices[index - start_point])
-        # else:
-        #     row = data[indices[index - start_point]]
-
-
         row = data[indices[index - start_point]]
-        # save the data in a tensor and creat
-        x, y = get_features_from_row(row, float(doy), None, None)
+        
+        optional_features_dict = {
+            'doy': doy,
+            'year': year
+        }
+        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
+
+        x, y = get_features_from_row(row, optional_features_values)
         
         return x, y
         
@@ -194,7 +191,11 @@ class DatasetIndices(Dataset):
 
 
 class DatasetReorganized(Dataset):
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool):
+    # NOTE: split is only passed to match the same signature as DatasetIndices
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
+        
+        self.optional_features = optional_features
+
         current_start_point = 0
         self.datapaths_info = []
 
@@ -240,13 +241,19 @@ class DatasetReorganized(Dataset):
         start_point = datapath_info['start_point']
         data = datapath_info['data']
 
-        year = datapath_info['year']
-        month = datapath_info['month']
-
+        year = float(datapath_info['year'])
         row = data[index - start_point]
+
+        # NOTE: When reorganizing the data it got annoying to create a new column for day but overwriting an
+        # existing column was straightforward, so I saved the doi in gphase
         doy = row['gfphase']
 
-        x, y = get_features_from_row(row, doy, float(month), None)
+        optional_features_dict = {
+            'doy': doy,
+            'year': year
+        }
+        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
+        x, y = get_features_from_row(row, optional_features_values)
         
         return x, y
 

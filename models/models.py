@@ -1,36 +1,111 @@
 from torch import nn
 import torch.nn.functional as F
 from typing import Any
+import torch
+import yaml
 
+def get_model(config: dict, input_size: int) -> Any:
+    model_type = config["model_type"]
 
-def get_model_class_from_string(model_str: str) -> Any:
-    if model_str == "FCN":
-        return FCN
+    if model_type == "FCN":
+        model = FCN(input_size, config["num_hidden_layers"], config["hidden_size"], 1)
+    elif model_type == "TwoStageModel":
+        return TwoStageModel(
+            input_size - len(config["optional_features"]), 
+            config["num_hidden_layers_1"],
+            config["hidden_size_1"],
+            config["output_size_1"],
+            config["output_size_1"] + len(config["optional_features"]),
+            config["num_hidden_layers_2"],
+            config["hidden_size_2"],
+        )
     
     else:
-        assert False, f"model class {model_str} is not supported."
+        assert False, f"model class {model_type} is not supported."
 
+    return model
+
+
+def load_pretrained_model(pretrained_model_path: str):
+    # NOTE: We are saving models with torch.save(model.state_dict), which makes the saved object a dictionary rather
+    # than the full model class. For this reason, we have to reinstantiate the model class using the saved pretraining config.
+    pretraining_config_path = pretrained_model_path + "trainig_config.yaml"
+    with open(pretraining_config_path, 'r') as file:
+        pretraining_config = yaml.load(file, Loader=yaml.FullLoader)
+
+    model_state_dict = torch.load(pretrained_model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
+    input_size = model_state_dict[list(model_state_dict.keys())[0]].shape[1] + len(pretraining_config['optional_features'])
+
+    model = get_model(pretraining_config, input_size)
+    model.load_state_dict(model_state_dict)
+
+    if pretraining_config_path["model_type"] == "TwoStageModel":
+        for param in model.fcn1.parameters():
+            param.requires_grad = False
+
+        for param in model.fcn2.parameters():
+            param.requires_grad = True
+    
+    elif pretraining_config_path["model_type"] == "FCN":
+        for param in model.parameters():
+            param.requires_grad = True
+
+    return model
 
 class FCN(nn.Module):
     """
     Class for a fully connected model in pytorch.
     """
     
-    def __init__(self, input_features, num_hidden_layers, hidden_size):
+    def __init__(self, input_size, num_hidden_layers, hidden_size, output_size=1):
         super().__init__()
 
         self.layers = nn.ModuleList()
-        self.layers.append(nn.Linear(input_features, hidden_size))
-        self.layers.append(nn.ReLU())
-
-        for i in range(num_hidden_layers):
-            self.layers.append(nn.Linear(hidden_size, hidden_size))
+        if num_hidden_layers == 0:
+            self.layers.append(nn.Linear(input_size, output_size))
+        else:
+            self.layers.append(nn.Linear(input_size, hidden_size))
             self.layers.append(nn.ReLU())
 
-        self.layers.append(nn.Linear(hidden_size, 1))
+            for i in range(num_hidden_layers - 1):
+                self.layers.append(nn.Linear(hidden_size, hidden_size))
+                self.layers.append(nn.ReLU())
+
+            self.layers.append(nn.Linear(hidden_size, output_size))
 
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
         return x
+
+
+class TwoStageModel(nn.Module):
+    def __init__(
+        self,
+        input_size_1,
+        num_hidden_layers_1,
+        hidden_size_1,
+        output_size_1,
+        input_size_2,
+        num_hidden_layers_2,
+        hidden_size_2,
+    ):
+        super().__init__()
+        self.input_size_1 = input_size_1
+        self.fcn1 = FCN(input_size_1, num_hidden_layers_1, hidden_size_1, output_size_1)
+        self.fcn2 = FCN(input_size_2, num_hidden_layers_2, hidden_size_2, 1)
+    
+    def forward(self, x):
+        x_1 = x[:, :self.input_size_1]
+        x_2 = x[:, self.input_size_1:]
+        h = self.fcn1(x_1)
+        hx_2 = torch.cat([h, x_2], dim=1)
+        out = self.fcn2(hx_2)
+        return out
+        
+
+if __name__ == "__main__":
+    x = torch.ones([10, 10])
+    model = TwoStageModel(5, 3, 200, 200, 205, 3, 200, 1)
+    model(x)

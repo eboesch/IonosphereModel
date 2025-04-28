@@ -2,22 +2,26 @@
 learning_rate: 0.001
 batch_size: 262144
 epochs: 10
-num_workers: 4
-pytables: true
-
+num_workers: 16
+pytables: true # make sure to set to True when running locally or in login node
+optional_features:
+ - "doy"
+ - "year"
+ 
 # model params
-pretrained_model_path: null
+pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-04-25-15-03-51/"
 model_type: "FCN"
-num_hidden_layers: 1
+num_hidden_layers: 6
 hidden_size: 256
 
 # time period
 year: 2024
-start_doy: 1
-num_days: 10
+start_doy: 180
+num_days: 1
 
 # paths
 use_reorganized_data: false
 datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 models_dir_name: "models"
+reorganized_data_dir_name: "reorganized_data_2"
