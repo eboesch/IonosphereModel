@@ -108,10 +108,11 @@ if __name__ == "__main__":
     if pretrained_model_path is None:
         model_type = config["model_type"]
         model = get_model(config, input_features)
-        model = model.to(device)
-        logger.info("Model: %s", model)
     else:
         model = load_pretrained_model(pretrained_model_path)
+
+    model = model.to(device)
+    logger.info("Model: %s", model)
 
     loss = nn.MSELoss()
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
@@ -119,6 +120,9 @@ if __name__ == "__main__":
     print("start training")
     logger.info("Starting training...")
     best_val_loss = float('inf')
+    val_loss = test(dataloader_val, model, loss, device)
+    logger.info(f"Validation Loss: {val_loss:>7f}")
+    
     for t in range(epochs):
         logger.info("-------------------------------\nEpoch %s\n-------------------------------", t+1)
         train_single_epoch(dataloader_train, model, loss, optimizer, device, logger,log_interval=3000)

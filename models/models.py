@@ -34,19 +34,21 @@ def load_pretrained_model(pretrained_model_path: str):
         pretraining_config = yaml.load(file, Loader=yaml.FullLoader)
 
     model_state_dict = torch.load(pretrained_model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
-    input_size = model_state_dict[list(model_state_dict.keys())[0]].shape[1] + len(pretraining_config['optional_features'])
+    input_size = model_state_dict[list(model_state_dict.keys())[0]].shape[1]
+    if pretraining_config["model_type"] == "TwoStageModel":
+        input_size += len(pretraining_config['optional_features'])
 
     model = get_model(pretraining_config, input_size)
     model.load_state_dict(model_state_dict)
 
-    if pretraining_config_path["model_type"] == "TwoStageModel":
+    if pretraining_config["model_type"] == "TwoStageModel":
         for param in model.fcn1.parameters():
             param.requires_grad = False
 
         for param in model.fcn2.parameters():
             param.requires_grad = True
     
-    elif pretraining_config_path["model_type"] == "FCN":
+    elif pretraining_config["model_type"] == "FCN":
         for param in model.parameters():
             param.requires_grad = True
 
