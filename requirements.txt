@@ -1,3 +1,4 @@
+altair==5.5.0
 blosc2==3.2.0
 certifi==2025.1.31
 charset-normalizer==3.4.1
@@ -31,6 +32,7 @@ nvidia-cusparselt-cu12==0.6.2
 nvidia-nccl-cu12==2.21.5
 nvidia-nvjitlink-cu12==12.4.127
 nvidia-nvtx-cu12==12.4.127
+opencv-python==4.11.0.86
 packaging==24.2
 pandas==2.2.3
 pillow==11.1.0
@@ -39,6 +41,7 @@ py-cpuinfo==9.0.0
 pyparsing==3.2.1
 python-dateutil==2.9.0.post0
 pytz==2025.1
+PyYAML==6.0.2
 requests==2.32.3
 six==1.17.0
 sympy==1.13.1
@@ -49,3 +52,4 @@ triton==3.2.0
 typing_extensions==4.12.2
 tzdata==2025.1
 urllib3==2.3.0
+vl-convert-python==1.7.0

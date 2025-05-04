@@ -80,6 +80,8 @@ def extract_features_vtec(data: pd.DataFrame) -> pd.DataFrame:
     
     #data['sm_lat_ipp'] = data["sm_lat_sta"]
     #data['sm_lon_ipp'] = data["sm_lon_sta"]
+    #data['sm_lat_ipp'] = data["sm_lat_sta"]
+    #data['sm_lon_ipp'] = data["sm_lon_sta"]
     data['sm_lon_ipp_s'] = np.sin(2 * np.pi * data['sm_lon_ipp'] / 360)
     data['sm_lon_ipp_c'] = np.cos(2 * np.pi * data['sm_lon_ipp'] / 360)
     data['sod_s'] = np.sin(2 * np.pi * data['sod'] / 86400) 
@@ -157,47 +159,11 @@ learning_rate = 1e-3
 batch_size = 64
 epochs = 10
 
-logger.info("Loading Data...")
-og_data = get_data(datapath)
-
-
-geo_lat = []
-geo_lon = []
-new_sod = []
-for lat in range(-89,90):
-    for lon in range(-179,180):
-        for s in range(0,86370,60):
-            geo_lat.append(lat)
-            geo_lon.append(lon)
-            new_sod.append(s)
-
-def coord_transform(input_type, output_type, lats, lons, epochs):
-    coords = np.array([[1 + 450 / 6371, lat, lon] for lat, lon in zip(lats, lons)], dtype=np.float64)
-    geo_coords = Coords(coords, input_type, 'sph')
-    geo_coords.ticks = Ticktock(epochs, 'UTC')
-    return geo_coords.convert(output_type, 'sph')
-
-date = datetime.strptime("2024-01-01", "%Y-%m-%d") + timedelta(days=82 - 1)
-epochs = [date + timedelta(seconds=int(sod)) for sod in new_sod]
-# Step 2: Transform to SM coordinates
-sm_coords = coord_transform('GEO', 'SM', geo_lat, geo_lon, epochs)
-
-out_coords = sm_coords.data
-
-
-
-data = pd.DataFrame()
-data["sm_lat_sta"] = out_coords[:,1]
-data["sm_lon_sta"] = out_coords[:,2]
-data["sm_lat_ipp"] = out_coords[:,1]
-data["sm_lon_ipp"] = out_coords[:,2]
-data["sod"] = new_sod  
-
-data["satazi"] = np.mean(og_data["satazi"])
-data["satele"] = np.mean(og_data["satele"])
-
-data = extract_features_vtec(data)
-features = ['sm_lat_ipp', 'sm_lon_ipp_s', 'sm_lon_ipp_c', 'sod_s', 'sod_c', 'satele','satazi_s', 'satazi_c',"sm_lon_ipp","sod"]
+    logger.info("Loading Data...")
+    data = get_data(datapath)
+    data = split_train_val_test(data)
+    data = extract_features_vtec(data)
+    features = ['sm_lat_ipp', 'sm_lon_ipp_s', 'sm_lon_ipp_c', 'sod_s', 'sod_c', 'satele','satazi_s', 'satazi_c', 'lat_sta', 'lon_sta']
 
 logger.info("Loading Data into tensors...")
 X = torch.tensor(data[features].values, device=device, dtype=torch.float64)
@@ -216,10 +182,20 @@ model.eval()
 
 logger.info("Model: %s", model)
 
-logger.info("Running inference")
-out_df = test(dataloader, model, device)
+        
+    logger.info("Running inference on test")
+    test_df = test(dataloader_test, model, device)
+    test_df.to_csv("outputs/test_inference.csv",index=False)
+    
+    
+    logger.info("Running inference on validation")
+    val_df = test(dataloader_val, model, device)
+    val_df.to_csv("outputs/val_inference.csv",index=False)
+        
+    logger.info("Running inference on train")
+    train_df = test(dataloader_train, model, device)
+    train_df.to_csv("outputs/train_inference.csv",index=False)
 
-out_df["geo_lat"] = geo_lat
-out_df["geo_lon"] = geo_lon
-out_df.to_csv("outputs/vtec_grid_with_geo.csv",index=False)
-logger.info("Done")
+
+    logger.info("Completed.")
+    

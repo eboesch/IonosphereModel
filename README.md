@@ -1,11 +1,11 @@
 # IonosphereModel
 In order to run execute:
-1.  module load stack/2024-06 python/3.11.6
+1.  module load stack/2024-06 python/3.12.8
 2.  python -m venv ./venv
 3.  source venv/bin/activate
 4.  pip install -r requirements.txt
 5.  screen
-6.  srun --ntasks=1 --cpus-per-task=10 --mem-per-cpu=4096 -G 1 -t 600 -o file.out -e file.err python main.py &
+6.  srun --ntasks=1 --cpus-per-task=10 --mem-per-cpu=4096 -G 1 -t 600 -o file.out -e file.err python run_training.py &
 
 
 Then press Control+A, followed by Control+D
