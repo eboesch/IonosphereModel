@@ -96,7 +96,10 @@ class DatasetIndices(Dataset):
             lenght :    length of the Dataset
         """
 
-        self.optional_features = optional_features
+        if optional_features is None:
+            self.optional_features = []
+        else:
+            self.optional_features = optional_features
 
         self.datapaths_info = []
         with open(f"dataset/{split}.list", "r") as file:
@@ -172,6 +175,7 @@ class DatasetIndices(Dataset):
             'doy': doy,
             'year': year
         }
+        
         optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
 
         x, y = get_features_from_row(row, optional_features_values)
@@ -194,7 +198,10 @@ class DatasetReorganized(Dataset):
     # NOTE: split is only passed to match the same signature as DatasetIndices
     def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
         
-        self.optional_features = optional_features
+        if optional_features is None:
+            self.optional_features = []
+        else:
+            self.optional_features = optional_features
 
         current_start_point = 0
         self.datapaths_info = []
