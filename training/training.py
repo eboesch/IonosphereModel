@@ -10,7 +10,7 @@ def train_single_epoch(dataloader, model, loss_fct, optimizer, device, logger, l
     # Set the model to training mode - important for batch normalization and dropout layers
     model.train()
     running_loss = 0.0
-    for batch, (X, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
+    for batch, (X, y) in tqdm(enumerate(dataloader), total=len(dataloader), mininterval=30):
         # Compute prediction and loss
         X, y = X.to(device), y.to(device)
         
