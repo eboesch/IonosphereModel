@@ -23,6 +23,7 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print("Started ", timestamp)
 
+    # config_path = "config/pretraining_config.yaml"
     config_path = "config/training_config.yaml"
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
@@ -68,12 +69,16 @@ if __name__ == "__main__":
 
         for year, months_in_year in years_dict.items():
             if months_in_year != "all":
-                # TODO implement logic in case we dont want to select all months
-                raise NotImplementedError
+                for month in months_in_year:
+                    datapaths_train += glob.glob(reorganized_datapath + f"{year}-{month}-train.h5")
+                    datapaths_val += glob.glob(reorganized_datapath + f"{year}-{month}-val.h5")
+                    datapaths_test += glob.glob(reorganized_datapath + f"{year}-{month}-test.h5")
+                
+            else: 
+                datapaths_train += glob.glob(reorganized_datapath + f"{year}*train.h5")
+                datapaths_val += glob.glob(reorganized_datapath + f"{year}*val.h5")
+                datapaths_test += glob.glob(reorganized_datapath + f"{year}*test.h5")
             
-            datapaths_train += glob.glob(reorganized_datapath + f"{year}*train.h5")
-            datapaths_val += glob.glob(reorganized_datapath + f"{year}*val.h5")
-            datapaths_test += glob.glob(reorganized_datapath + f"{year}*test.h5")
         dataset_class = DatasetReorganized
 
     else:
@@ -87,16 +92,15 @@ if __name__ == "__main__":
         datapaths_train = datapaths_val = datapaths_test = datapaths
         dataset_class = DatasetIndices
 
-    print("get datasets")
+    logger.info("Fetching datasets...")
 
     dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, optional_features=config['optional_features'])
-    print(f"Total length = {dataset_train.__len__()*1e-6:.2f} Mil")
     x, y = dataset_train[0]
     input_features = x.shape[0]
     dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables, optional_features=config['optional_features'])
     dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, optional_features=config['optional_features'])
+    logger.info(f"Total length of Training Dataset = {dataset_train.__len__()*1e-6:.2f} Mil")
 
-    print("get dataloaders")
     logger.info("Preparing DataLoaders...")
     dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -106,7 +110,6 @@ if __name__ == "__main__":
     logger.info("Setting up Model...")
     pretrained_model_path = config["pretrained_model_path"]
     if pretrained_model_path is None:
-        model_type = config["model_type"]
         model = get_model(config, input_features)
     else:
         model = load_pretrained_model(pretrained_model_path)
@@ -114,20 +117,35 @@ if __name__ == "__main__":
     model = model.to(device)
     logger.info("Model: %s", model)
 
-    loss = nn.MSELoss()
+    loss_type = config["training_loss"]
+    if loss_type == "MSE":
+        loss = nn.MSELoss()
+    elif loss_type == "MAE": 
+        loss = nn.L1Loss()
+    else:
+        raise ValueError("Unfamiliar training loss function.")
+    logger.info(f"Using {loss_type} for training")    
+    mse_loss = nn.MSELoss() # used for comparison with previous models
+    
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
 
-    print("start training")
     logger.info("Starting training...")
     best_val_loss = float('inf')
     val_loss = test(dataloader_val, model, loss, device)
-    logger.info(f"Validation Loss: {val_loss:>7f}")
+    logger.info(f"{loss_type} Val Loss: {val_loss:>7f}")
+
+    mse_val_loss = test(dataloader_val, model, mse_loss, device)
+    logger.info(f"MSE Validation Loss: {mse_val_loss:>7f}") # for sake of comparison to previous models, reporting MSE validation loss
+        
     
     for t in range(epochs):
         logger.info("-------------------------------\nEpoch %s\n-------------------------------", t+1)
         train_single_epoch(dataloader_train, model, loss, optimizer, device, logger,log_interval=3000)
         val_loss = test(dataloader_val, model, loss, device)
-        logger.info(f"Validation Loss: {val_loss:>7f}")
+        logger.info(f"{loss_type} Val Loss: {val_loss:>7f}")
+
+        mse_val_loss = test(dataloader_val, model, mse_loss, device)
+        logger.info(f"MSE Validation Loss: {mse_val_loss:>7f}") # for sake of comparison to previous models, reporting MSE validation loss
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
