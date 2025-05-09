@@ -9,9 +9,9 @@ from joblib import Parallel, delayed
 
 # srun --ntasks=1 --cpus-per-task=6 --mem-per-cpu=4096 -t 600 -o file.out -e file.err python dataset/reorganize_data.py &
 
-class TableDescription(tables.IsDescription):
+class SolarTableDescription(tables.IsDescription):
     """
-    Schema of the table
+    Table Schema if either daily or hourly solar indices are requested
     """
     station = tables.StringCol(itemsize=4, shape=(), dflt=np.bytes_(''), pos=0)
     sat = tables.StringCol(itemsize=3, shape=(), dflt=np.bytes_(''), pos=1)
@@ -40,6 +40,33 @@ class TableDescription(tables.IsDescription):
     dst_index = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=18)
     f_index = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=19)
 
+class PlainTableDescription(tables.IsDescription):
+    """
+    Table Schema if no solar indices are requested
+    """
+    station = tables.StringCol(itemsize=4, shape=(), dflt=np.bytes_(''), pos=0)
+    sat = tables.StringCol(itemsize=3, shape=(), dflt=np.bytes_(''), pos=1)
+    stec = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=2)
+    vtec = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=3)
+    # vtec_stddev = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=4)
+    # satres = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=5)
+    satele = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=4)
+    satazi = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=5)
+    # dcdbs = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=8)
+    # dcdbrr = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=9)
+    lon_ipp = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=6)
+    lat_ipp = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=7)
+    sm_lat_ipp = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=8)
+    sm_lon_ipp = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=9)
+    sod = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=10)
+    lat_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=11)
+    lon_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=12)
+    sm_lat_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=13)
+    sm_lon_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=14)
+    # slipc = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=19)
+    # gfphase = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=20)
+    doy = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=15)
+
 
 def get_expected_rows(group, subsampling_ratio):
     """
@@ -54,25 +81,26 @@ def get_expected_rows(group, subsampling_ratio):
 
 def get_daily_solar_indices(year, doy, datapath):
     """
-    Returns the daily average solar indices of the given day in the given year.
+    Returns an array of the daily average solar indices of the given day in the given year.
     """
     path = datapath + "omni2_solar_indices_daily.lst"
     labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
-    df = pd.read_csv(path, delim_whitespace=True, names=labels)
+    df = pd.read_csv(path, sep='\s+', names=labels)
+    # df = pd.read_csv(path, delim_whitespace=True, names=labels)
     row = df.loc[(df["year"] == year) & (df["doy"] == doy)] # filter for the correct row
     solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
     return solar_indices
 
 def get_hourly_solar_indices(year, doy, datapath):
     """
-    Returns the daily average solar indices of the given day in the given year.
+    Returns a numpy array of the hourly solar indices of the given day in the given year.
     """
     path = datapath + "omni2_solar_indices_hourly.lst"
     labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
     # df = pd.read_csv(path, sep='\s+', names=labels)
     df = pd.read_csv(path, delim_whitespace=True, names=labels)
     filtered_df = df.loc[(df["year"] == year) & (df["doy"] == doy)]
-    filtered_df = filtered_df.drop(columns=['year', 'doy'])
+    filtered_df = filtered_df.drop(columns=['year', 'doy']).to_numpy()
     return filtered_df
 
 def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, solar_indices_mode, solar_indices_path):
@@ -93,6 +121,11 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, sol
             # create empty table
             out_h5 = tables.open_file(month_output_path, mode='w')
             expectedrows = get_expected_rows(group, subsampling_ratio)
+            if solar_indices_mode == "none":
+                TableDescription = PlainTableDescription
+            else:
+                TableDescription = SolarTableDescription
+
             out_table = out_h5.create_table('/', 'all_data', TableDescription, expectedrows=expectedrows)
             for datapath in tqdm(datapaths):
                 if not os.path.exists(datapath):
@@ -113,9 +146,7 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, sol
 
                     
                     if solar_indices_mode == "none":
-                        #TODO: resolve table description issues 
                         new_dtype = np.dtype(filtered_data.dtype.descr + [('doy', 'f4')])
-                        raise NotImplementedError
                     else:
                         new_dtype = np.dtype(filtered_data.dtype.descr + [('doy', 'f4'), ('kp_index', 'f4'), ('r_index', 'f4'), ('dst_index', 'f4'), ('f_index', 'f4')])
                     
@@ -131,11 +162,10 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, sol
                         extended_data['dst_index'] = solar_indices[2]
                         extended_data['f_index'] = solar_indices[3]
                     elif solar_indices_mode == "hourly":
-                        solar_indices_df = get_hourly_solar_indices(year, int(doy), solar_indices_path)
-                        solar_indices = solar_indices_df.to_numpy()
+                        solar_indices = get_hourly_solar_indices(year, int(doy), solar_indices_path)
                         
                         sod = extended_data['sod']
-                        hour_indices = np.round(sod/3600).astype(int) #% 24
+                        hour_indices = np.round(sod/3600).astype(int)
                         matched_solar_indices = solar_indices[hour_indices]
 
                         
@@ -146,7 +176,9 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, sol
 
                     extended_data = extended_data[list(TableDescription.__dict__['columns'].keys())] # drop the columns we don't want
 
-                    extended_data = extended_data.astype([
+
+                    if solar_indices_mode == "none":
+                        extended_data = extended_data.astype([
                         ('station', 'S4'),
                         ('sat', 'S3'),
                         ('stec', 'f4'),
@@ -163,11 +195,30 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, sol
                         ('sm_lat_sta', 'f4'),
                         ('sm_lon_sta', 'f4'),
                         ('doy', 'f4'),
-                        ('kp_index', 'f4'),
-                        ('r_index', 'f4'),
-                        ('dst_index', 'f4'),
-                        ('f_index', 'f4')
                     ])  
+                    else:
+                        extended_data = extended_data.astype([
+                            ('station', 'S4'),
+                            ('sat', 'S3'),
+                            ('stec', 'f4'),
+                            ('vtec', 'f4'),
+                            ('satele', 'f4'),
+                            ('satazi', 'f4'),
+                            ('lon_ipp', 'f4'),
+                            ('lat_ipp', 'f4'),
+                            ('sm_lat_ipp', 'f4'),
+                            ('sm_lon_ipp', 'f4'),
+                            ('sod', 'f4'),
+                            ('lat_sta', 'f4'),
+                            ('lon_sta', 'f4'),
+                            ('sm_lat_sta', 'f4'),
+                            ('sm_lon_sta', 'f4'),
+                            ('doy', 'f4'),
+                            ('kp_index', 'f4'),
+                            ('r_index', 'f4'),
+                            ('dst_index', 'f4'),
+                            ('f_index', 'f4')
+                        ])  
                     out_table.append(extended_data)
                     out_table.flush()
                 
