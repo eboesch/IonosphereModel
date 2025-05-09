@@ -1,6 +1,7 @@
 import os
 import tables
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import shutil
 import yaml
@@ -31,9 +32,13 @@ class TableDescription(tables.IsDescription):
     lon_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=12)
     sm_lat_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=13)
     sm_lon_sta = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=14)
-    # doy = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=15)
     # slipc = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=19)
-    gfphase = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=15)
+    # gfphase = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=20)
+    doy = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=15)
+    kp_index = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=16)
+    r_index = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=17)
+    dst_index = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=18)
+    f_index = tables.Float32Col(shape=(), dflt=np.float32(0.0), pos=19)
 
 
 def get_expected_rows(group, subsampling_ratio):
@@ -47,7 +52,30 @@ def get_expected_rows(group, subsampling_ratio):
     return expectedrows
 
 
-def reorganize_month(year, month, datapaths, output_path, subsampling_ratio):
+def get_daily_solar_indices(year, doy, datapath):
+    """
+    Returns the daily average solar indices of the given day in the given year.
+    """
+    path = datapath + "omni2_solar_indices_daily.lst"
+    labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
+    df = pd.read_csv(path, delim_whitespace=True, names=labels)
+    row = df.loc[(df["year"] == year) & (df["doy"] == doy)] # filter for the correct row
+    solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
+    return solar_indices
+
+def get_hourly_solar_indices(year, doy, datapath):
+    """
+    Returns the daily average solar indices of the given day in the given year.
+    """
+    path = datapath + "omni2_solar_indices_hourly.lst"
+    labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
+    # df = pd.read_csv(path, sep='\s+', names=labels)
+    df = pd.read_csv(path, delim_whitespace=True, names=labels)
+    filtered_df = df.loc[(df["year"] == year) & (df["doy"] == doy)]
+    filtered_df = filtered_df.drop(columns=['year', 'doy'])
+    return filtered_df
+
+def reorganize_month(year, month, datapaths, output_path, subsampling_ratio, solar_indices_mode, solar_indices_path):
     """
     Subsamples the data of the corresponding month and year at the given datapaths and saves it at the indicated location.
     """
@@ -83,10 +111,42 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio):
                     mask_stations = np.isin(data.col('station'), stations)
                     filtered_data = data[mask_subsampling*mask_stations]
 
-                    filtered_data['gfphase'] = doy
-                    filtered_data = filtered_data[list(TableDescription.__dict__['columns'].keys())]  
                     
-                    filtered_data = filtered_data.astype([
+                    if solar_indices_mode == "none":
+                        #TODO: resolve table description issues 
+                        new_dtype = np.dtype(filtered_data.dtype.descr + [('doy', 'f4')])
+                        raise NotImplementedError
+                    else:
+                        new_dtype = np.dtype(filtered_data.dtype.descr + [('doy', 'f4'), ('kp_index', 'f4'), ('r_index', 'f4'), ('dst_index', 'f4'), ('f_index', 'f4')])
+                    
+                    extended_data = np.empty(filtered_data.shape, dtype=new_dtype)
+                    for name in filtered_data.dtype.names:
+                        extended_data[name] = filtered_data[name]
+                    extended_data['doy'] = doy
+
+                    if solar_indices_mode == "daily":
+                        solar_indices = get_daily_solar_indices(year, int(doy), solar_indices_path)
+                        extended_data['kp_index'] = solar_indices[0]
+                        extended_data['r_index'] = solar_indices[1]
+                        extended_data['dst_index'] = solar_indices[2]
+                        extended_data['f_index'] = solar_indices[3]
+                    elif solar_indices_mode == "hourly":
+                        solar_indices_df = get_hourly_solar_indices(year, int(doy), solar_indices_path)
+                        solar_indices = solar_indices_df.to_numpy()
+                        
+                        sod = extended_data['sod']
+                        hour_indices = np.round(sod/3600).astype(int) #% 24
+                        matched_solar_indices = solar_indices[hour_indices]
+
+                        
+                        extended_data['kp_index'] = matched_solar_indices[:,1]
+                        extended_data['r_index'] = matched_solar_indices[:,2]
+                        extended_data['dst_index'] = matched_solar_indices[:,3]
+                        extended_data['f_index'] = matched_solar_indices[:,4]
+
+                    extended_data = extended_data[list(TableDescription.__dict__['columns'].keys())] # drop the columns we don't want
+
+                    extended_data = extended_data.astype([
                         ('station', 'S4'),
                         ('sat', 'S3'),
                         ('stec', 'f4'),
@@ -102,9 +162,13 @@ def reorganize_month(year, month, datapaths, output_path, subsampling_ratio):
                         ('lon_sta', 'f4'),
                         ('sm_lat_sta', 'f4'),
                         ('sm_lon_sta', 'f4'),
-                        ('gfphase', 'f4')
+                        ('doy', 'f4'),
+                        ('kp_index', 'f4'),
+                        ('r_index', 'f4'),
+                        ('dst_index', 'f4'),
+                        ('f_index', 'f4')
                     ])  
-                    out_table.append(filtered_data)
+                    out_table.append(extended_data)
                     out_table.flush()
                 
                 finally:
@@ -120,11 +184,16 @@ if __name__ == "__main__":
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     
+   
     subsampling_ratio = config["subsampling_ratio"]
     years_dict = config["years"]
     output_path = config["dslab_path"] + config["output_dir_name"] + "/"
     datapath = config["datapath"]
-    
+    solar_indices_mode = config["solar_indices_mode"]
+    solar_indices_path = config["solar_indices_path"]
+    assert solar_indices_mode in ["none", "daily", "hourly"], "solar_indices_mode must be one of 'none', 'daily' or 'hourly'."
+
+
     os.makedirs(output_path, exist_ok=True)
     shutil.copy(config_path, output_path + "reorganize_data_config.yaml")
     leap_years = [2020, 2024]
@@ -153,13 +222,13 @@ if __name__ == "__main__":
                 )
         
 
-        Parallel(n_jobs=-1)(delayed(reorganize_month)(year, month_idx + 1, datapaths, output_path, subsampling_ratio) for month_idx, datapaths in enumerate(datapaths_per_month))
+        Parallel(n_jobs=-1)(delayed(reorganize_month)(year, month_idx + 1, datapaths, output_path, subsampling_ratio, solar_indices_mode, solar_indices_path) for month_idx, datapaths in enumerate(datapaths_per_month))
 
         # for month_idx, datapaths in enumerate(datapaths_per_month):
 
         #     month = month_idx + 1
         #     print(f"month: {month}")
-        #     reorganize_month(year, month_idx + 1, datapaths, output_path, subsampling_ratio)
+        #     reorganize_month(year, month_idx + 1, datapaths, output_path, subsampling_ratio, solar_indices_mode, solar_indices_path)
             
         
     
