@@ -54,6 +54,21 @@ def load_pretrained_model(pretrained_model_path: str):
 
     return model
 
+
+def load_model(model_path):
+    model_config_path = model_path + "trainig_config.yaml"
+    with open(model_config_path, 'r') as file:
+        model_config = yaml.load(file, Loader=yaml.FullLoader)
+
+    if model_config["pretrained_model_path"] is None:
+        return load_pretrained_model(model_path)
+    
+    else:
+        model = load_model(model_config["pretrained_model_path"])
+        model_state_dict = torch.load(model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
+        model.load_state_dict(model_state_dict)
+        return model
+
 class FCN(nn.Module):
     """
     Class for a fully connected model in pytorch.

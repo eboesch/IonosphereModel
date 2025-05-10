@@ -10,6 +10,7 @@ import h5py
 import time
 import psutil
 import os
+import pandas as pd
 
 
 def monitor_access(data, index):
@@ -274,7 +275,46 @@ class DatasetReorganized(Dataset):
     def __del__(self):
         for datapath_info in self.datapaths_info:
             datapath_info["file"].close()
-            
+
+
+class DatasetSA(Dataset):
+    def __init__(self, df, optional_features = ['doi', 'year'], satazi=None):
+        df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
+        print(df.columns)
+        df['time'] = pd.to_datetime(df['time'])
+        df['sod'] = df['time'].dt.second + 60*df['time'].dt.minute + 3600*df['time'].dt.hour
+        df['doy'] = df['time'].dt.dayofyear
+        df['year'] = df['time'].dt.year
+        df['satele'] = 90
+        df['stec'] = df['vtec']
+        self.df = df
+        self.satazi = satazi
+        if optional_features is None:
+            self.optional_features = []
+        else:
+            self.optional_features = optional_features
+
+
+    def __getitem__(self, index):
+        row = self.df.iloc[index].copy()
+        year = float(row['year'])
+        doy = float(row['doy'])
+        optional_features_dict = {
+            'doy': doy,
+            'year': year
+        }
+        if self.satazi is None:
+            row["satazi"] = 360*np.random.uniform()
+        else:
+            row["satazi"] = self.satazi
+
+        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
+        x, y = get_features_from_row(row, optional_features_values)
+        return x, y
+
+    def __len__(self):
+        return self.df.shape[0]
+        
 
 
 if __name__ == "__main__":

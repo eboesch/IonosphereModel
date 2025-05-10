@@ -31,4 +31,4 @@ use_reorganized_data: false
 datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 models_dir_name: "models"
-reorganized_data_dir_name: "reorganized_data_2"
+reorganized_data_dir_name: "reorganized_data_3"
