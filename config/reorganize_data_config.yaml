@@ -2,7 +2,7 @@ datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 solar_indices_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 solar_indices_mode: "hourly"
-output_dir_name: "reorganized_data_4"
+output_dir_name: "reorganized_data_5"
 years:
   2022: "all"
   2023: "all"

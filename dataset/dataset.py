@@ -84,7 +84,7 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
 
 class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doy', 'year']):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -96,10 +96,9 @@ class DatasetIndices(Dataset):
             lenght :    length of the Dataset
         """
 
-        if optional_features is None:
-            self.optional_features = []
-        else:
-            self.optional_features = optional_features
+        self.optional_features = optional_features or []
+        for tier in self.optional_features:
+            self.optional_features[tier] = self.optional_features[tier] or []
 
         self.datapaths_info = []
         with open(f"dataset/{split}.list", "r") as file:
@@ -171,12 +170,22 @@ class DatasetIndices(Dataset):
         data = datapath_info['data']
         row = data[indices[index - start_point]]
         
-        optional_features_dict = {
-            'doy': doy,
-            'year': year
-        }
+        # optional_features_dict = {
+        #     'doy': doy,
+        #     'year': year
+        # }
         
-        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
+        # optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
+
+        optional_features_values = []
+        for tier in self.optional_features:
+            for feature in self.optional_features[tier]:
+                if feature == 'year':
+                    optional_features_values.append(year)
+                elif feature == 'doy':
+                    optional_features_values.append(doy)
+                else:
+                    optional_features_values.append(row[feature])
 
         x, y = get_features_from_row(row, optional_features_values)
         
@@ -196,12 +205,11 @@ class DatasetIndices(Dataset):
 
 class DatasetReorganized(Dataset):
     # NOTE: split is only passed to match the same signature as DatasetIndices
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doy', 'year']):
         
-        if optional_features is None:
-            self.optional_features = []
-        else:
-            self.optional_features = optional_features
+        self.optional_features = optional_features or []
+        for tier in self.optional_features:
+            self.optional_features[tier] = self.optional_features[tier] or []
 
         current_start_point = 0
         self.datapaths_info = []
@@ -251,15 +259,14 @@ class DatasetReorganized(Dataset):
         year = float(datapath_info['year'])
         row = data[index - start_point]
 
-        # NOTE: When reorganizing the data it got annoying to create a new column for day but overwriting an
-        # existing column was straightforward, so I saved the doi in gphase
-        doy = row['gfphase']
+        optional_features_values = []
+        for tier in self.optional_features:
+            for feature in self.optional_features[tier]:
+                if feature == 'year':
+                    optional_features_values.append(year)
+                else:
+                    optional_features_values.append(row[feature])
 
-        optional_features_dict = {
-            'doy': doy,
-            'year': year
-        }
-        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
         x, y = get_features_from_row(row, optional_features_values)
         
         return x, y
@@ -280,14 +287,22 @@ class DatasetReorganized(Dataset):
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
 
-    # datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doi).zfill(3)}/ccl_2024{str(doi).zfill(3)}_30_5.h5" for doi in range(1, 3)]
+    # datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doy).zfill(3)}/ccl_2024{str(doy).zfill(3)}_30_5.h5" for doy in range(1, 3)]
     # train_dataset = DatasetGNSS(datapaths, "train", logger)
     # for i in range(100):
     #     print(train_dataset[i])
     # train_dataset.__del__()
 
+    import yaml
+    config_path = "config/pretraining_config.yaml"
+    # config_path = "config/training_config.yaml"
+    with open(config_path, 'r') as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+
+
+
     dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-    datapaths_train = [dslab_path + f"reorganized_data/2023-{i}-train.h5" for i in range(1, 12)]
-    train_dataset = DatasetReorganized(datapaths_train, logger)
+    datapaths_train = [dslab_path + f"reorganized_data_4/2023-{i}-train.h5" for i in range(1, 12)]
+    train_dataset = DatasetReorganized(datapaths_train, 'train', logger, True, optional_features = config['optional_features'])
     train_dataset[10]
     train_dataset.__del__()

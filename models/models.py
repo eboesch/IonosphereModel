@@ -11,11 +11,11 @@ def get_model(config: dict, input_size: int) -> Any:
         model = FCN(input_size, config["num_hidden_layers"], config["hidden_size"], 1)
     elif model_type == "TwoStageModel":
         return TwoStageModel(
-            input_size - len(config["optional_features"]), 
+            input_size - len(config["optional_features"]['delayed']), 
             config["num_hidden_layers_1"],
             config["hidden_size_1"],
             config["output_size_1"],
-            config["output_size_1"] + len(config["optional_features"]),
+            config["output_size_1"] + len(config["optional_features"]['delayed']),
             config["num_hidden_layers_2"],
             config["hidden_size_2"],
         )

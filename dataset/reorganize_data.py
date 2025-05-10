@@ -85,8 +85,8 @@ def get_daily_solar_indices(year, doy, datapath):
     """
     path = datapath + "omni2_solar_indices_daily.lst"
     labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
-    df = pd.read_csv(path, sep='\s+', names=labels)
-    # df = pd.read_csv(path, delim_whitespace=True, names=labels)
+    # df = pd.read_csv(path, sep='\s+', names=labels)
+    df = pd.read_csv(path, delim_whitespace=True, names=labels)
     row = df.loc[(df["year"] == year) & (df["doy"] == doy)] # filter for the correct row
     solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
     return solar_indices
