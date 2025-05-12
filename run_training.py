@@ -23,8 +23,8 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print("Started ", timestamp)
 
-    # config_path = "config/pretraining_config.yaml"
     config_path = "config/training_config.yaml"
+
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     dslab_path = config["dslab_path"]
@@ -47,6 +47,10 @@ if __name__ == "__main__":
     num_workers = config["num_workers"]
     use_reorganized_data = config["use_reorganized_data"]
     pytables = config["pytables"]
+    if not "use_spheric_coords" in config.keys():
+        config["use_spheric_coords"] = False
+    if not "normalize_features" in config.keys():
+        config["normalize_features"] = False
 
 
     torch.manual_seed(10)
@@ -94,11 +98,11 @@ if __name__ == "__main__":
 
     logger.info("Fetching datasets...")
 
-    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, optional_features=config['optional_features'])
+    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables, optional_features=config['optional_features'])
-    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, optional_features=config['optional_features'])
+    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables, optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
+    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
     logger.info(f"Total length of Training Dataset = {dataset_train.__len__()*1e-6:.2f} Mil")
 
     logger.info("Preparing DataLoaders...")

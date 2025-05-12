@@ -35,6 +35,11 @@ if __name__ == "__main__":
     num_workers = model_config["num_workers"]
     pytables = model_config["pytables"]
 
+    if not "use_spheric_coords" in model_config.keys():
+        model_config["use_spheric_coords"] = False
+    if not "normalize_features" in model_config.keys():
+        model_config["normalize_features"] = False
+
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
     logger.info("Using %s device", device)
     logger.info(f"batch_size: {batch_size}")
@@ -55,7 +60,7 @@ if __name__ == "__main__":
         logger.info(f"date range: {doy} until {doy+n-1} of {year}")
         assert doy + n <= 366, "Date range reaches end of year. Currently not supported."
         datapaths_test = [datapath + f"{year}/{str(doy+i).zfill(3)}/ccl_{year}{str(doy+i).zfill(3)}_30_5.h5" for i in range(n)]
-        dataset_test = DatasetIndices(datapaths_test, "test", logger, pytables=pytables, optional_features=model_config['optional_features'])
+        dataset_test = DatasetIndices(datapaths_test, "test", logger, pytables=pytables, optional_features=model_config['optional_features'], use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
 
     elif evaluation_data == "SA":
         sa_path = inferences_config["sa_path"]
@@ -66,7 +71,7 @@ if __name__ == "__main__":
         print(data.shape)
         data = data[data['time'].dt.year == year]
         print(data.shape)
-        dataset_test = DatasetSA(data, model_config['optional_features'], None)
+        dataset_test = DatasetSA(data, model_config['optional_features'], None, use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
 
     else:
         assert False

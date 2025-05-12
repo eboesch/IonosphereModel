@@ -54,18 +54,28 @@ def monitor_access(data, index):
     return row
 
 
-def get_features_from_row(row: NDArray, optional_features_values: list):    
+def get_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
+    if use_spheric_coords:
+        angle_coords = [
+            np.cos(2 * np.pi * row['satele'] / 360) * np.cos(2 * np.pi * row['satazi'] / 360),
+            np.cos(2 * np.pi * row['satele'] / 360) * np.sin(2 * np.pi * row['satazi'] / 360),
+            np.sin(2 * np.pi * row['satele'] / 360)
+        ]
+
+    else:
+        angle_coords = [
+            np.sin(2 * np.pi * row['satazi'] / 360),
+            np.cos(2 * np.pi * row['satazi'] / 360),
+            row['satele'] if not normalize_features else row['satele'] / 45 - 1.0,
+        ]
     x = torch.tensor(
             [
-                row['sm_lat_ipp'],
+                row['sm_lat_ipp'] if not normalize_features else row['sm_lat_ipp'] / 90,
                 np.sin(2 * np.pi * row['sm_lon_ipp'] / 360),
                 np.cos(2 * np.pi * row['sm_lon_ipp'] / 360),
                 np.sin(2 * np.pi * row['sod'] / 86400),
                 np.cos(2 * np.pi * row['sod'] / 86400), 
-                np.sin(2 * np.pi * row['satazi'] / 360),
-                np.cos(2 * np.pi * row['satazi'] / 360),
-                row['satele'],
-            ] + optional_features_values,
+            ] + angle_coords + optional_features_values,
             dtype=torch.float32
         )
     y = torch.tensor([row['stec']]) # label
@@ -85,7 +95,7 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
 
 class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year'], use_spheric_coords=False, normalize_features=False):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -101,6 +111,8 @@ class DatasetIndices(Dataset):
             self.optional_features = []
         else:
             self.optional_features = optional_features
+        self.use_spheric_coords = use_spheric_coords
+        self.normalize_features = normalize_features
 
         self.datapaths_info = []
         with open(f"dataset/{split}.list", "r") as file:
@@ -179,7 +191,7 @@ class DatasetIndices(Dataset):
         
         optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
 
-        x, y = get_features_from_row(row, optional_features_values)
+        x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         
         return x, y
         
@@ -197,12 +209,14 @@ class DatasetIndices(Dataset):
 
 class DatasetReorganized(Dataset):
     # NOTE: split is only passed to match the same signature as DatasetIndices
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year']):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year'], use_spheric_coords=False, normalize_features=False):
         
         if optional_features is None:
             self.optional_features = []
         else:
             self.optional_features = optional_features
+        self.use_spheric_coords = use_spheric_coords
+        self.normalize_features = normalize_features
 
         current_start_point = 0
         self.datapaths_info = []
@@ -261,7 +275,7 @@ class DatasetReorganized(Dataset):
             'year': year
         }
         optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
-        x, y = get_features_from_row(row, optional_features_values)
+        x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         
         return x, y
 
@@ -278,7 +292,7 @@ class DatasetReorganized(Dataset):
 
 
 class DatasetSA(Dataset):
-    def __init__(self, df, optional_features = ['doi', 'year'], satazi=None):
+    def __init__(self, df, optional_features = ['doi', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
         df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
         print(df.columns)
         df['time'] = pd.to_datetime(df['time'])
@@ -293,6 +307,8 @@ class DatasetSA(Dataset):
             self.optional_features = []
         else:
             self.optional_features = optional_features
+        self.use_spheric_coords = use_spheric_coords
+        self.normalize_features = normalize_features
 
 
     def __getitem__(self, index):
@@ -309,7 +325,7 @@ class DatasetSA(Dataset):
             row["satazi"] = self.satazi
 
         optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
-        x, y = get_features_from_row(row, optional_features_values)
+        x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         return x, y
 
     def __len__(self):
