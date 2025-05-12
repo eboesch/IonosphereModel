@@ -132,11 +132,10 @@ if __name__ == "__main__":
 
     model_id = inferences_config["model_path"].split("/")[-2]
 
-    # TODO: THIS DOESNT WORK BECAUSE OF LINUX PERMISSION ERRORS, LETS DO SOMETHING TO END THE MISERY OF LINUX PERMISSION ERRORS
-    # out_path = inferences_config["model_path"] + f"inferences_{timestamp}/"
-    # os.makedirs(out_path)
-    # shutil.copy(inferences_config_path, out_path + "inferences_config.yaml")
-    # out_df.to_csv(out_path + "inferences.csv",index=False)
+    out_path = inferences_config["model_path"] + f"inferences_{timestamp}/"
+    os.makedirs(out_path)
+    shutil.copy(inferences_config_path, out_path + "inferences_config.yaml")
+    out_df.to_csv(out_path + "inferences.csv",index=False)
 
     # for debug
-    out_df.to_csv("outputs/" + model_id + inferences_config['evaluation_data'] + year + doy + n + ".csv",index=False)
+    out_df.to_csv("outputs/" + model_id + inferences_config['evaluation_data'] + str(year) + str(doy) + str(n) + ".csv", index=False)
