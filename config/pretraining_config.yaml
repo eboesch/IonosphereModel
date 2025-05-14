@@ -8,17 +8,17 @@ optional_features:
   initial:
   #  - "doy"
   #  - "year"
-  #  - "kp_index"
-  #  - "r_index"
-  #  - "dst_index"
-  #  - "f_index"
-  delayed:
-   - "doy"
-   - "year"
    - "kp_index"
    - "r_index"
    - "dst_index"
    - "f_index"
+  delayed:
+   - "doy"
+   - "year"
+  #  - "kp_index"
+  #  - "r_index"
+  #  - "dst_index"
+  #  - "f_index"
 
 # model params
 pretrained_model_path: null
@@ -47,5 +47,5 @@ use_reorganized_data: true
 datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 models_dir_name: "pretrained_models"
-reorganized_data_dir_name: "reorganized_data_4" # 4 -> daily solar indices
-# reorganized_data_dir_name: "reorganized_data_5" # 5 -> hourly solar indices
+# reorganized_data_dir_name: "reorganized_data_4" # 4 -> daily solar indices
+reorganized_data_dir_name: "reorganized_data_5" # 5 -> hourly solar indices

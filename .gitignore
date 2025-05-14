@@ -1,6 +1,6 @@
 /venv
 /.vscode
 /outputs
-file.err
-file.out
+**.err
+**.out
 **/__pycache__/
