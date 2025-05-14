@@ -36,7 +36,8 @@ def load_pretrained_model(pretrained_model_path: str):
     model_state_dict = torch.load(pretrained_model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
     input_size = model_state_dict[list(model_state_dict.keys())[0]].shape[1]
     if pretraining_config["model_type"] == "TwoStageModel":
-        input_size += len(pretraining_config['optional_features'])
+        # TODO: Make backwards compatible
+        input_size += len(pretraining_config['optional_features']['delayed'])
 
     model = get_model(pretraining_config, input_size)
     model.load_state_dict(model_state_dict)
