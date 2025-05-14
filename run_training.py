@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from dataset.dataset import DatasetIndices, DatasetReorganized
 from evaluation.test import test
 from datetime import datetime
-from models.models import get_model, load_pretrained_model
+from models.models import get_model, load_pretrained_model, load_model
 from training.training import train_single_epoch
 import yaml
 import shutil
@@ -163,6 +163,7 @@ if __name__ == "__main__":
 
 
     logger.info("Starting evaluation...")
+    model = load_model(model_path)
     eval_loss_fct = nn.L1Loss()
     test_loss = test(dataloader_test, model, eval_loss_fct, device)
     logger.info(f"Evaluation MAE Loss: {test_loss:>7f}")
