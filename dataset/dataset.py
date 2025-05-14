@@ -185,7 +185,7 @@ class DatasetIndices(Dataset):
         row = data[indices[index - start_point]]
         
         optional_features_dict = {
-            'doy': doy,
+            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
             'year': year
         }
         
@@ -271,7 +271,7 @@ class DatasetReorganized(Dataset):
         doy = row['gfphase']
 
         optional_features_dict = {
-            'doy': doy,
+            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
             'year': year
         }
         optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
@@ -316,7 +316,7 @@ class DatasetSA(Dataset):
         year = float(row['year'])
         doy = float(row['doy'])
         optional_features_dict = {
-            'doy': doy,
+            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
             'year': year
         }
         if self.satazi is None:

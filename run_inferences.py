@@ -11,6 +11,7 @@ import yaml
 import numpy as np
 from tqdm import tqdm
 import shutil
+from torch import nn
 
 inferences_config_path = "config/inferences_config.yaml"
 
@@ -55,12 +56,12 @@ if __name__ == "__main__":
         n = inferences_config["num_days"]
 
     evaluation_data = inferences_config["evaluation_data"]
-    if evaluation_data == "regular":
+    if evaluation_data in ["train", "val", "test"]:
         datapath = model_config["datapath"]
         logger.info(f"date range: {doy} until {doy+n-1} of {year}")
         assert doy + n <= 366, "Date range reaches end of year. Currently not supported."
         datapaths_test = [datapath + f"{year}/{str(doy+i).zfill(3)}/ccl_{year}{str(doy+i).zfill(3)}_30_5.h5" for i in range(n)]
-        dataset_test = DatasetIndices(datapaths_test, "test", logger, pytables=pytables, optional_features=model_config['optional_features'], use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
+        dataset_test = DatasetIndices(datapaths_test, evaluation_data, logger, pytables=pytables, optional_features=model_config['optional_features'], use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
 
     elif evaluation_data == "SA":
         sa_path = inferences_config["sa_path"]
@@ -113,34 +114,45 @@ if __name__ == "__main__":
 
             print("end",index_end)
 
-    out_df = pd.DataFrame()
-    out_df["sm_lat_ipp"] = features[:,0]
-    out_df["sm_lon_ipp_sin"] = features[:,1]
-    out_df["sm_lon_ipp_cos"] = features[:,2]
-    out_df["sod_sin"] = features[:,3]
-    out_df["sod_cos"] = features[:,4]
-    out_df["satazi_cos"] = features[:,5]
-    out_df["satazi_sin"] = features[:,6]
-    out_df["satele"] = features[:,7]
-
-    idx = 8
-    if model_config["optional_features"] is not None:
-        if "doy" in model_config["optional_features"]:
-            out_df["doy"] = features[:,idx]
-            idx += 1
-
-        if "year" in model_config["optional_features"]:
-            out_df["year"] = features[:,idx]
-
-    out_df["prediction"] = preds
-    out_df["target"] = targets
-
     model_id = inferences_config["model_path"].split("/")[-2]
 
     out_path = inferences_config["model_path"] + f"inferences_{timestamp}/"
-    os.makedirs(out_path)
+    os.makedirs(out_path, exist_ok = True)
     shutil.copy(inferences_config_path, out_path + "inferences_config.yaml")
-    out_df.to_csv(out_path + "inferences.csv",index=False)
 
-    # for debug
-    out_df.to_csv("outputs/" + model_id + inferences_config['evaluation_data'] + str(year) + str(doy) + str(n) + ".csv", index=False)
+    metrics = pd.Series({
+        "MSE": np.abs((targets - preds)**2).mean().item(),
+        "MAE": np.abs(targets - preds).mean().item()
+    })
+    print(metrics)
+    metrics.to_csv(out_path + "metrics.csv")
+
+
+    if inferences_config["save_inferences"]:
+
+        out_df = pd.DataFrame()
+        out_df["sm_lat_ipp"] = features[:,0]
+        out_df["sm_lon_ipp_sin"] = features[:,1]
+        out_df["sm_lon_ipp_cos"] = features[:,2]
+        out_df["sod_sin"] = features[:,3]
+        out_df["sod_cos"] = features[:,4]
+        out_df["satazi_sin"] = features[:,5]
+        out_df["satazi_cos"] = features[:,6]
+        out_df["satele"] = features[:,7]
+
+        idx = 8
+        if model_config["optional_features"] is not None:
+            if "doy" in model_config["optional_features"]:
+                out_df["doy"] = features[:,idx]
+                idx += 1
+
+            if "year" in model_config["optional_features"]:
+                out_df["year"] = features[:,idx]
+
+        out_df["prediction"] = preds
+        out_df["target"] = targets
+
+        out_df.to_csv(out_path + "inferences.csv",index=False)
+
+        # for debug
+        out_df.to_csv("outputs/" + model_id + inferences_config['evaluation_data'] + str(year) + str(doy) + str(n) + ".csv", index=False)

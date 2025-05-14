@@ -3,11 +3,14 @@ model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025
 
 # evaluation period
 same_day_as_training: true
+# only used if same_day_as_training is False
 year: 2024
 start_doy: 100
 num_days: 1
 
+# save full inferences or just agg loss
+save_inferences: true
 
-# one of regular, SA 
-evaluation_data: "SA"
+# one of train, val, test, SA 
+evaluation_data: "val"
 sa_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/arno/sa_dataset.csv"
