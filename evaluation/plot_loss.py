@@ -18,7 +18,9 @@ pretrained_model_dict = {
     "model_2025-04-30-23-22-21/": "4+2", 
     "model_2025-05-01-16-14-32/": "6+3", 
     "model_2025-05-01-23-02-56/": "4+2, with smaller batch size",
-    "model_2025-05-04-12-10-18/": "4+2, with MAE training loss",
+    "model_2025-05-04-12-10-18/": "4+2, with MAE training loss",    
+    "model_2025-05-10-21-34-55/": "hourly solar indices, 4+2, MAE",
+    "model_2025-05-10-17-39-31/": "daily solar indices, 4+2, MAE",    
 }
 
 
@@ -26,7 +28,9 @@ if MODEL_TYPE == "pretrained":
     models_path = dslab_path + "pretrained_models/"
     outpath = 'outputs/val_loss_pt.png'
 
-    model_labels = ["4+1", "6", "4+2", "6+3", "4+2, with smaller batch size", "4+2, with MAE training loss"]
+    # model_labels = ["4+1", "6", "4+2", "6+3", "4+2, with smaller batch size", "4+2, with MAE training loss"]
+    # model_labels = ["4+2", "4+2, with MAE training loss", "hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
+    model_labels = ["hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
 
     models = [key for key, value in pretrained_model_dict.items() if value in model_labels]
 
@@ -55,7 +59,11 @@ finetuned_model_dict = {
     "model_2025-05-02-11-14-16/": "4+2, day 28",
     "model_2025-05-04-21-40-49/": "4+2, MAE bad formatting",
     "model_2025-05-05-11-15-10/": "4+2, MAE 0.5 FT LR",
-    "model_2025-05-05-11-31-39/": "4+2, MAE"
+    "model_2025-05-05-11-31-39/": "4+2, MAE",
+    "model_2025-05-05-13-23-28/": "from scratch, 4, MAE, with doy+year", 
+    "model_2025-05-05-13-37-53/": "from scratch, 4, MAE", 
+    "model_2025-05-11-15-32-59/": "hourly solar indices, 4+2, MAE",
+    "model_2025-05-11-16-53-38/": "daily solar indices, 4+2, MAE",
 }
 
 # flip dictionary
@@ -70,8 +78,11 @@ if MODEL_TYPE == "finetuned":
                 # "4+2 0.5 FT LR", "4+2 0.1 FT LR", 
                 # "6+3", "6+3 0.5 FT LR",
                 # "4+2, MAE"]
-    model_labels = ["from scratch, 4", "4+2", "4+2, MAE"]
+    # model_labels = ["from scratch, 4", "from scratch, 4, MAE", "4+2", "4+2, MAE"]
+    # model_labels = ["from scratch, 4, MAE", "4+2, MAE"]
     # model_labels = ["4+2, MAE", "4+2, MAE 0.5 FT LR", "4+2, MAE bad formatting"]
+    # model_labels = ["4+2", "4+2, MAE", "from scratch, 4, MAE", "hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
+    model_labels = ["hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
 
     models = [finetuned_model_dict[model] for model in model_labels]
 
@@ -99,7 +110,7 @@ for model in models:
     
     """MSE validation loss -> can compare to older models"""
     # doesn't include zero-shot loss -> important for MSE loss, since zero-shot error is much bigger and makes plot unreadable
-    ax.plot(range(1, len(mse_val_losses)), mse_val_losses[1:], label = model)
+    # ax.plot(range(1, len(mse_val_losses)), mse_val_losses[1:], label = model)
 
     # includes zero-shot loss
     # ax.plot(range(0, len(mse_val_losses)), mse_val_losses, label = model)
@@ -107,14 +118,15 @@ for model in models:
 
     """validation loss same as chosen training loss -> only works on newer models"""
     # doesn't include zero-shot loss
-    # ax.plot(range(1, len(val_losses)), val_losses[1:], label = model)
+    ax.plot(range(1, len(val_losses)), val_losses[1:], label = model)
 
     # includes zero-shot loss
     # ax.plot(range(0, len(val_losses)), val_losses, label = model)
 
 pp(test_losses)
-# ax.set_ylim([0,600])
+# ax.set_ylim([0,300])
 # ax.axhline(40.94, c="k") # for final val loss when training from scratch
+# ax.axhline(3.98, c="k") # for final val loss when training from scratch
 fig.legend(labels=model_labels, loc="center right", bbox_to_anchor=(1, 0.5))
 fig.subplots_adjust(right=0.75)
 fig.supxlabel("Epoch")
