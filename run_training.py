@@ -98,11 +98,11 @@ if __name__ == "__main__":
 
     logger.info("Fetching datasets...")
 
-    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
+    dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, solar_indices_path=config['solar_indices_path'], optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
     x, y = dataset_train[0]
     input_features = x.shape[0]
-    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables, optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
-    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
+    dataset_val = dataset_class(datapaths_val, "val", logger, pytables=pytables, solar_indices_path=config['solar_indices_path'], optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
+    dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, solar_indices_path=config['solar_indices_path'], optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
     logger.info(f"Total length of Training Dataset = {dataset_train.__len__()*1e-6:.2f} Mil")
 
     logger.info("Preparing DataLoaders...")

@@ -11,6 +11,7 @@ import time
 import psutil
 import os
 import pandas as pd
+import pandas as pd
 
 
 def monitor_access(data, index):
@@ -93,9 +94,39 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
     return file, data
 
 
+def get_daily_solar_indices(year, doy, solar_indices_df):
+    """
+    Returns an array of the daily average solar indices of the given day in the given year.
+    """
+    row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy)] # filter for the correct row
+    solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
+    return solar_indices
+
+def get_hourly_solar_indices(year, doy, sod, solar_indices_df):
+    """
+    Returns a numpy array of the hourly solar indices of the given day in the given year.
+    """
+    hour = np.round(sod/3600).astype(int)
+    if hour < 24:
+        row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy) & (solar_indices_df["hour"] == hour)]
+    else: # retrieve values of midnight of next day
+        last_doy = {2020: 366, 2021: 365, 2022: 365, 2023: 365, 2024: 366, 2025: 365}
+        if doy == last_doy[year]:
+            # if we're at the last day of the year, we need get midnight of the first day of the next year
+            row = solar_indices_df.loc[(solar_indices_df["year"] == year+1) & (solar_indices_df["doy"] == 1) & (solar_indices_df["hour"] == 0)]
+        else:
+            row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy+1) & (solar_indices_df["hour"] == 0)] # get midnight of the next day
+    
+        prev_row = row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy) & (solar_indices_df["hour"] == 23)]
+        row['r_index'] = prev_row['r_index'] # r_index and f_index are the same all day -> keep the values of the current day
+        row['f_index'] = prev_row['f_index']
+
+    solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
+    return solar_indices
+
 class DatasetIndices(Dataset):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year'], use_spheric_coords=False, normalize_features=False):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -107,10 +138,9 @@ class DatasetIndices(Dataset):
             lenght :    length of the Dataset
         """
 
-        if optional_features is None:
-            self.optional_features = []
-        else:
-            self.optional_features = optional_features
+        self.optional_features = optional_features or []
+        for tier in self.optional_features:
+            self.optional_features[tier] = self.optional_features[tier] or []
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
 
@@ -146,6 +176,15 @@ class DatasetIndices(Dataset):
             )
             current_start_point += len(indices)
             # logger.info(f"Completed {datapath}")
+
+        hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
+        labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
+        self.solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
+        # self.solar_indices = pd.read_csv(hourly_path, delim_whitespace=True, names=labels)
+
+        daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
+        self.solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
+        # self.solar_indices_daily = pd.read_csv(daily_path, delim_whitespace=True, names=labels)
             
         self.length = current_start_point
             
@@ -183,13 +222,29 @@ class DatasetIndices(Dataset):
 
         data = datapath_info['data']
         row = data[indices[index - start_point]]
+
+        sod = row['sod']
+        
+        daily_solar_indices = get_daily_solar_indices(year, int(doy), self.solar_indices_daily)
+        hourly_solar_indices = get_hourly_solar_indices(year, int(doy), sod, self.solar_indices_hourly)
         
         optional_features_dict = {
+            'kp_index_hourly': hourly_solar_indices[0],
+            'r_index_hourly': hourly_solar_indices[1],
+            'dst_index_hourly': hourly_solar_indices[2],
+            'f_index_hourly': hourly_solar_indices[3],
             'doy': doy if not self.normalize_features else doy / 183 - 1.0,
-            'year': year
+            'year': year,
+            'kp_index_daily': daily_solar_indices[0],
+            'r_index_daily': daily_solar_indices[1],
+            'dst_index_daily': daily_solar_indices[2],
+            'f_index_daily': daily_solar_indices[3],
         }
-        
-        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
+
+        optional_features_values = []
+        for tier in self.optional_features:
+            for feature in self.optional_features[tier]:
+                optional_features_values.append(optional_features_dict[feature])
 
         x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         
@@ -209,12 +264,11 @@ class DatasetIndices(Dataset):
 
 class DatasetReorganized(Dataset):
     # NOTE: split is only passed to match the same signature as DatasetIndices
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, optional_features = ['doi', 'year'], use_spheric_coords=False, normalize_features=False):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
         
-        if optional_features is None:
-            self.optional_features = []
-        else:
-            self.optional_features = optional_features
+        self.optional_features = optional_features or []
+        for tier in self.optional_features:
+            self.optional_features[tier] = self.optional_features[tier] or []
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
 
@@ -244,6 +298,15 @@ class DatasetReorganized(Dataset):
             )
             current_start_point += data.shape[0]
             logger.info(f"Completed {datapath}")
+
+        hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
+        labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
+        self.solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
+        # self.solar_indices = pd.read_csv(hourly_path, delim_whitespace=True, names=labels)
+
+        daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
+        self.solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
+        # self.solar_indices_daily = pd.read_csv(daily_path, delim_whitespace=True, names=labels)
             
         self.length = current_start_point
 
@@ -267,15 +330,33 @@ class DatasetReorganized(Dataset):
         row = data[index - start_point]
 
         # NOTE: When reorganizing the data it got annoying to create a new column for day but overwriting an
-        # existing column was straightforward, so I saved the doi in gphase
+        # existing column was straightforward, so I saved the doy in gphase
         doy = row['gfphase']
-
+        # doy = row['doy']
+        sod = row['sod']
+        
+        daily_solar_indices = get_daily_solar_indices(year, int(doy), self.solar_indices_daily)
+        hourly_solar_indices = get_hourly_solar_indices(year, int(doy), sod, self.solar_indices_hourly)
+        
         optional_features_dict = {
+            'kp_index_hourly': hourly_solar_indices[0],
+            'r_index_hourly': hourly_solar_indices[1],
+            'dst_index_hourly': hourly_solar_indices[2],
+            'f_index_hourly': hourly_solar_indices[3],
             'doy': doy if not self.normalize_features else doy / 183 - 1.0,
-            'year': year
+            'year': year,
+            'kp_index_daily': daily_solar_indices[0],
+            'r_index_daily': daily_solar_indices[1],
+            'dst_index_daily': daily_solar_indices[2],
+            'f_index_daily': daily_solar_indices[3],
         }
-        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
-        x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
+
+        optional_features_values = []
+        for tier in self.optional_features:
+            for feature in self.optional_features[tier]:
+                optional_features_values.append(optional_features_dict[feature])
+                
+        x, y = get_features_from_row(row, optional_features_values)
         
         return x, y
 
@@ -336,14 +417,22 @@ class DatasetSA(Dataset):
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
 
-    # datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doi).zfill(3)}/ccl_2024{str(doi).zfill(3)}_30_5.h5" for doi in range(1, 3)]
+    # datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doy).zfill(3)}/ccl_2024{str(doy).zfill(3)}_30_5.h5" for doy in range(1, 3)]
     # train_dataset = DatasetGNSS(datapaths, "train", logger)
     # for i in range(100):
     #     print(train_dataset[i])
     # train_dataset.__del__()
 
+    import yaml
+    # config_path = "config/pretraining_config.yaml"
+    config_path = "config/training_config.yaml"
+    with open(config_path, 'r') as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+
+
+
     dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-    datapaths_train = [dslab_path + f"reorganized_data/2023-{i}-train.h5" for i in range(1, 12)]
-    train_dataset = DatasetReorganized(datapaths_train, logger)
+    datapaths_train = [dslab_path + f"reorganized_data_5/2023-{i}-train.h5" for i in range(1, 12)]
+    train_dataset = DatasetReorganized(datapaths_train, 'train', logger, True, config['solar_indices_path'], optional_features = config['optional_features'])
     train_dataset[10]
     train_dataset.__del__()
