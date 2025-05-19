@@ -1,4 +1,7 @@
-model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-01-14-35-02/"
+# model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-01-14-35-02/"
+model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-11-15-32-59/" # hourly solar indices
+# model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-11-16-53-38/" # daily solar indices
+# model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-04-21-40-49/" # no solar indices
 
 
 # evaluation period

@@ -10,12 +10,21 @@ def get_model(config: dict, input_size: int) -> Any:
     if model_type == "FCN":
         model = FCN(input_size, config["num_hidden_layers"], config["hidden_size"], 1)
     elif model_type == "TwoStageModel":
+        # NOTE: older models didn't have the two-tier format of optional_features.
+        # for the sake of backwards comptatibility we make this distinction here
+        if type(config["optional_features"]) == dict:
+            input_size = input_size - len(config["optional_features"]['delayed'])
+            output_size_1 = config["output_size_1"] + len(config["optional_features"]['delayed'])
+        else:
+            input_size = input_size - len(config["optional_features"])
+            output_size_1 = config["output_size_1"] + len(config["optional_features"])
+
         return TwoStageModel(
-            input_size - len(config["optional_features"]), 
+            input_size, 
             config["num_hidden_layers_1"],
             config["hidden_size_1"],
             config["output_size_1"],
-            config["output_size_1"] + len(config["optional_features"]),
+            output_size_1,
             config["num_hidden_layers_2"],
             config["hidden_size_2"],
         )
@@ -36,7 +45,12 @@ def load_pretrained_model(pretrained_model_path: str):
     model_state_dict = torch.load(pretrained_model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
     input_size = model_state_dict[list(model_state_dict.keys())[0]].shape[1]
     if pretraining_config["model_type"] == "TwoStageModel":
-        input_size += len(pretraining_config['optional_features'])
+        # NOTE: older models didn't have the two-tier format of optional_features.
+        # for the sake of backwards comptatibility we make this distinction here
+        if type(pretraining_config["optional_features"]) == dict:
+            input_size += len(pretraining_config['optional_features']['delayed'])
+        else:
+            input_size += len(pretraining_config['optional_features'])
 
     model = get_model(pretraining_config, input_size)
     model.load_state_dict(model_state_dict)

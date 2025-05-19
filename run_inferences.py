@@ -14,6 +14,7 @@ import shutil
 from torch import nn
 
 inferences_config_path = "config/inferences_config.yaml"
+solar_indices_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 
 if __name__ == "__main__":
     with open(inferences_config_path, 'r') as file:
@@ -61,7 +62,7 @@ if __name__ == "__main__":
         logger.info(f"date range: {doy} until {doy+n-1} of {year}")
         assert doy + n <= 366, "Date range reaches end of year. Currently not supported."
         datapaths_test = [datapath + f"{year}/{str(doy+i).zfill(3)}/ccl_{year}{str(doy+i).zfill(3)}_30_5.h5" for i in range(n)]
-        dataset_test = DatasetIndices(datapaths_test, evaluation_data, logger, pytables=pytables, optional_features=model_config['optional_features'], use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
+        dataset_test = DatasetIndices(datapaths_test, evaluation_data, logger, pytables=pytables, solar_indices_path=solar_indices_path, optional_features=model_config['optional_features'], use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
 
     elif evaluation_data == "SA":
         sa_path = inferences_config["sa_path"]
@@ -140,14 +141,28 @@ if __name__ == "__main__":
         out_df["satazi_cos"] = features[:,6]
         out_df["satele"] = features[:,7]
 
-        idx = 8
-        if model_config["optional_features"] is not None:
-            if "doy" in model_config["optional_features"]:
-                out_df["doy"] = features[:,idx]
-                idx += 1
 
-            if "year" in model_config["optional_features"]:
-                out_df["year"] = features[:,idx]
+        # NOTE: older models didn't have the two-tier format of optional_features.
+        # for the sake of backwards comptatibility we make this distinction here
+        if type(model_config["optional_features"]) == dict:
+            initial = model_config["optional_features"]["initial"] or []
+            delayed = model_config["optional_features"]["delayed"] or []
+            optional_features = initial + delayed
+        else:
+            optional_features = model_config["optional_features"] or []
+
+        idx = 8
+        for feature in optional_features:
+            out_df[feature] = features[:,idx]
+            idx += 1
+            
+        # if model_config["optional_features"] is not None:
+        #     if "doy" in model_config["optional_features"]:
+        #         out_df["doy"] = features[:,idx]
+        #         idx += 1
+
+        #     if "year" in model_config["optional_features"]:
+        #         out_df["year"] = features[:,idx]
 
         out_df["prediction"] = preds
         out_df["target"] = targets
