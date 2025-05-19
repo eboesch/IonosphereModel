@@ -5,16 +5,12 @@ epochs: 10
 num_workers: 16
 pytables: false # make sure to set to True when running locally or in login node
 optional_features:
-  initial:
-  #  - "doy"
-  #  - "year"
+   - "doy"
+   - "year"
    - "kp_index_hourly"
    - "r_index_hourly"
    - "dst_index_hourly"
    - "f_index_hourly"
-  delayed:
-   - "doy"
-   - "year"
   #  - "kp_index_daily"
   #  - "r_index_daily"
   #  - "dst_index_daily"
