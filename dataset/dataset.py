@@ -113,11 +113,11 @@ def get_hourly_solar_indices(year, doy, sod, solar_indices_df):
         last_doy = {2020: 366, 2021: 365, 2022: 365, 2023: 365, 2024: 366, 2025: 365}
         if doy == last_doy[year]:
             # if we're at the last day of the year, we need get midnight of the first day of the next year
-            row = solar_indices_df.loc[(solar_indices_df["year"] == year+1) & (solar_indices_df["doy"] == 1) & (solar_indices_df["hour"] == 0)]
+            row = solar_indices_df.loc[(solar_indices_df["year"] == year+1) & (solar_indices_df["doy"] == 1) & (solar_indices_df["hour"] == 0)].copy()
         else:
-            row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy+1) & (solar_indices_df["hour"] == 0)] # get midnight of the next day
+            row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy+1) & (solar_indices_df["hour"] == 0)].copy() # get midnight of the next day
     
-        prev_row = row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy) & (solar_indices_df["hour"] == 23)]
+        prev_row = row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy) & (solar_indices_df["hour"] == 23)].copy()
         row['r_index'] = prev_row['r_index'] # r_index and f_index are the same all day -> keep the values of the current day
         row['f_index'] = prev_row['f_index']
 
@@ -139,8 +139,13 @@ class DatasetIndices(Dataset):
         """
 
         self.optional_features = optional_features or []
-        for tier in self.optional_features:
-            self.optional_features[tier] = self.optional_features[tier] or []
+        if type(self.optional_features) == dict:
+            for tier in self.optional_features:
+                self.optional_features[tier] = self.optional_features[tier] or []
+
+
+        
+        
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
 
@@ -242,8 +247,12 @@ class DatasetIndices(Dataset):
         }
 
         optional_features_values = []
-        for tier in self.optional_features:
-            for feature in self.optional_features[tier]:
+        if type(self.optional_features) == dict:
+            for tier in self.optional_features:
+                for feature in self.optional_features[tier]:
+                    optional_features_values.append(optional_features_dict[feature])
+        else:
+            for feature in self.optional_features:
                 optional_features_values.append(optional_features_dict[feature])
 
         x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
@@ -430,9 +439,11 @@ if __name__ == "__main__":
         config = yaml.load(file, Loader=yaml.FullLoader)
 
 
-
+    datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
     dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-    datapaths_train = [dslab_path + f"reorganized_data_5/2023-{i}-train.h5" for i in range(1, 12)]
-    train_dataset = DatasetReorganized(datapaths_train, 'train', logger, True, config['solar_indices_path'], optional_features = config['optional_features'])
+    # datapaths_train = [dslab_path + f"reorganized_data_2/2023-{i}-train.h5" for i in range(1, 12)]
+    # train_dataset = DatasetReorganized(datapaths_train, 'train', logger, True, config['solar_indices_path'], optional_features = config['optional_features'])
+    datapaths_train = [datapath + f"2024/{str(183+i).zfill(3)}/ccl_2024{str(183+i).zfill(3)}_30_5.h5" for i in range(2)]
+    train_dataset = DatasetIndices(datapaths_train, 'train', logger, True, config['solar_indices_path'], optional_features = config['optional_features'])
     train_dataset[10]
     train_dataset.__del__()
