@@ -333,8 +333,8 @@ class DatasetReorganized(DatasetGNSS):
             datapath_info["file"].close()
 
 
-class DatasetSA(Dataset):
-    def __init__(self, df, optional_features = ['doi', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
+class DatasetSA(DatasetGNSS):
+    def __init__(self, df, solar_indices_path, optional_features = ['doi', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
         df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
         print(df.columns)
         df['time'] = pd.to_datetime(df['time'])
@@ -351,22 +351,20 @@ class DatasetSA(Dataset):
             self.optional_features = optional_features
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
+        self.solar_indices_daily, self.solar_indices_hourly = get_solar_indices(solar_indices_path)
 
 
     def __getitem__(self, index):
         row = self.df.iloc[index].copy()
         year = float(row['year'])
         doy = float(row['doy'])
-        optional_features_dict = {
-            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
-            'year': year
-        }
+        sod = float(row['sod'])
+        optional_features_values = self.get_optional_features(year, doy, sod)
         if self.satazi is None:
             row["satazi"] = 360*np.random.uniform()
         else:
             row["satazi"] = self.satazi
 
-        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
         x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         return x, y
 
