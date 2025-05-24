@@ -164,6 +164,7 @@ if __name__ == "__main__":
 
     logger.info("Starting evaluation...")
     model = load_model(model_path)
+    model = model.to(device)
     eval_loss_fct = nn.L1Loss()
     test_loss = test(dataloader_test, model, eval_loss_fct, device)
     logger.info(f"Evaluation MAE Loss: {test_loss:>7f}")

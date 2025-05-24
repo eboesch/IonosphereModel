@@ -11,48 +11,41 @@ import time
 import psutil
 import os
 import pandas as pd
-import pandas as pd
 
 
-def monitor_access(data, index):
-    # Record time and CPU info before access
-    process = psutil.Process(os.getpid())
-    before_io = psutil.disk_io_counters()
-    before_cpu = process.cpu_times()
-    before_mem = process.memory_info()
-    start = time.perf_counter()
-    before_net = psutil.net_io_counters()
+def get_solar_indices(solar_indices_path):
+    hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
+    labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
+    solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
+    last_doy = {2020: 366, 2021: 365, 2022: 365, 2023: 365, 2024: 366, 2025: 365}
+    solar_indices_lookup_hourly = {
+        (row["year"], row["doy"], row["hour"]): row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) 
+        for _, row in solar_indices_hourly.iterrows()
+    }
+    for _, row in solar_indices_hourly.iterrows():
+        if row["hour"] == 23:
+            if last_doy[row["year"]] == row["doy"]:
+                if row["year"] < 2024:
+                    solar_indices_lookup_hourly.update(
+                        {(row["year"], row["doy"], 24): solar_indices_lookup_hourly[(row["year"]+1, 1, 0)]}
+                    )
+                else:
+                    solar_indices_lookup_hourly.update(
+                        {(row["year"], row["doy"], 24): solar_indices_lookup_hourly[(row["year"], row["doy"], 23)]}
+                    )
+            else:
+                solar_indices_lookup_hourly.update(
+                    {(row["year"], row["doy"], 24): solar_indices_lookup_hourly[(row["year"], row["doy"] + 1, 0)]}
+                )
+        
+    daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
+    solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
+    solar_indices_lookup_daily = {
+        (row["year"], row["doy"]): row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) 
+        for _, row in solar_indices_daily.iterrows()
+    }
 
-    # Actual data access
-    row = data[index]
-
-    end = time.perf_counter()
-    after_io = psutil.disk_io_counters()
-    after_cpu = process.cpu_times()
-    after_mem = process.memory_info()
-    
-    # ...
-    after_net = psutil.net_io_counters()
-    net_bytes = after_net.bytes_recv - before_net.bytes_recv
-    net_kb = net_bytes / 1024
-
-    # Metrics
-    duration = end - start
-    io_read_bytes = after_io.read_bytes - before_io.read_bytes
-    cpu_time = (after_cpu.user + after_cpu.system) - (before_cpu.user + before_cpu.system)
-    memory_used_mb = after_mem.rss / 1024**2
-    delta_mem = (after_mem.rss - before_mem.rss) / 1024**2  # In MB
-
-    print(f"Index: {index}")
-    print(f"  Access time: {duration:.4f} sec")
-    print(f"  Disk read: {io_read_bytes / 1024:.1f} KB")
-    print(f"  CPU time: {cpu_time:.4f} sec")
-    print(f"  RAM used: {memory_used_mb:.1f} MB")
-    print(f"  RAM delta: {delta_mem:+.1f} MB (RSS)")
-    print(f"  network: {net_kb}")
-    print("---")
-
-    return row
+    return solar_indices_lookup_daily, solar_indices_lookup_hourly
 
 
 def get_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
@@ -119,37 +112,58 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
     return file, data
 
 
-def get_daily_solar_indices(year, doy, solar_indices_df):
-    """
-    Returns an array of the daily average solar indices of the given day in the given year.
-    """
-    row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy)] # filter for the correct row
-    solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
-    return solar_indices
+class DatasetGNSS(Dataset):
+    solar_indices_daily: dict
+    solar_indices_hourly: dict
+    optional_features: list | dict
+    normalize_features: bool
 
-def get_hourly_solar_indices(year, doy, sod, solar_indices_df):
-    """
-    Returns a numpy array of the hourly solar indices of the given day in the given year.
-    """
-    hour = np.round(sod/3600).astype(int)
-    if hour < 24:
-        row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy) & (solar_indices_df["hour"] == hour)]
-    else: # retrieve values of midnight of next day
-        last_doy = {2020: 366, 2021: 365, 2022: 365, 2023: 365, 2024: 366, 2025: 365}
-        if doy == last_doy[year]:
-            # if we're at the last day of the year, we need get midnight of the first day of the next year
-            row = solar_indices_df.loc[(solar_indices_df["year"] == year+1) & (solar_indices_df["doy"] == 1) & (solar_indices_df["hour"] == 0)].copy()
+    def get_optional_features(self, year, doy, sod):
+        optional_features_dict = {
+            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
+            'year': year,
+        }
+        if isinstance(self.optional_features, list):
+            optional_features_names = self.optional_features
         else:
-            row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy+1) & (solar_indices_df["hour"] == 0)].copy() # get midnight of the next day
-    
-        prev_row = row = solar_indices_df.loc[(solar_indices_df["year"] == year) & (solar_indices_df["doy"] == doy) & (solar_indices_df["hour"] == 23)].copy()
-        row['r_index'] = prev_row['r_index'] # r_index and f_index are the same all day -> keep the values of the current day
-        row['f_index'] = prev_row['f_index']
+            optional_features_names = self.optional_features["delayed"]
+            assert len(self.optional_features["initial"]) == 0
 
-    solar_indices = row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) # extract the desired indices 
-    return solar_indices
+        if np.any(["daily" in f for f in optional_features_names]):
+            daily_solar_indices = self.solar_indices_daily[(int(year), int(doy))]
+            optional_features_dict.update(
+                {
+                    'kp_index_daily': daily_solar_indices[0],
+                    'r_index_daily': daily_solar_indices[1],
+                    'dst_index_daily': daily_solar_indices[2],
+                    'f_index_daily': daily_solar_indices[3],
+                }
+            )
 
-class DatasetIndices(Dataset):
+        if np.any(["hourly" in f for f in optional_features_names]):
+            hour = np.round(sod/3600).astype(int)
+            hourly_solar_indices = self.solar_indices_hourly[(int(year), int(doy), int(hour))]
+            optional_features_dict.update(
+                {
+                    'kp_index_hourly': hourly_solar_indices[0],
+                    'r_index_hourly': hourly_solar_indices[1],
+                    'dst_index_hourly': hourly_solar_indices[2],
+                    'f_index_hourly': hourly_solar_indices[3],
+                }
+            )
+
+        optional_features_values = []
+        if type(self.optional_features) == dict:
+            for tier in self.optional_features:
+                for feature in self.optional_features[tier]:
+                    optional_features_values.append(optional_features_dict[feature])
+        else:
+            for feature in self.optional_features:
+                optional_features_values.append(optional_features_dict[feature])
+
+        return optional_features_values
+
+class DatasetIndices(DatasetGNSS):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
     def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
         """
@@ -168,9 +182,6 @@ class DatasetIndices(Dataset):
             for tier in self.optional_features:
                 self.optional_features[tier] = self.optional_features[tier] or []
 
-
-        
-        
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
 
@@ -207,14 +218,7 @@ class DatasetIndices(Dataset):
             current_start_point += len(indices)
             # logger.info(f"Completed {datapath}")
 
-        hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
-        labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
-        self.solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
-        # self.solar_indices = pd.read_csv(hourly_path, delim_whitespace=True, names=labels)
-
-        daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
-        self.solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
-        # self.solar_indices_daily = pd.read_csv(daily_path, delim_whitespace=True, names=labels)
+        self.solar_indices_daily, self.solar_indices_hourly = get_solar_indices(solar_indices_path)
             
         self.length = current_start_point
             
@@ -254,34 +258,9 @@ class DatasetIndices(Dataset):
         row = data[indices[index - start_point]]
 
         sod = row['sod']
-        
-        daily_solar_indices = get_daily_solar_indices(year, int(doy), self.solar_indices_daily)
-        hourly_solar_indices = get_hourly_solar_indices(year, int(doy), sod, self.solar_indices_hourly)
-        
-        optional_features_dict = {
-            'kp_index_hourly': hourly_solar_indices[0],
-            'r_index_hourly': hourly_solar_indices[1],
-            'dst_index_hourly': hourly_solar_indices[2],
-            'f_index_hourly': hourly_solar_indices[3],
-            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
-            'year': year,
-            'kp_index_daily': daily_solar_indices[0],
-            'r_index_daily': daily_solar_indices[1],
-            'dst_index_daily': daily_solar_indices[2],
-            'f_index_daily': daily_solar_indices[3],
-        }
-
-        optional_features_values = []
-        if type(self.optional_features) == dict:
-            for tier in self.optional_features:
-                for feature in self.optional_features[tier]:
-                    optional_features_values.append(optional_features_dict[feature])
-        else:
-            for feature in self.optional_features:
-                optional_features_values.append(optional_features_dict[feature])
-
+        optional_features_values = self.get_optional_features(year, doy, sod)
         x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
-        
+
         return x, y
         
     def __len__(self):
@@ -296,13 +275,15 @@ class DatasetIndices(Dataset):
 
 
 
-class DatasetReorganized(Dataset):
+class DatasetReorganized(DatasetGNSS):
     # NOTE: split is only passed to match the same signature as DatasetIndices
     def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
-        
+
         self.optional_features = optional_features or []
-        for tier in self.optional_features:
-            self.optional_features[tier] = self.optional_features[tier] or []
+        if type(self.optional_features) == dict:
+            for tier in self.optional_features:
+                self.optional_features[tier] = self.optional_features[tier] or []
+
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
 
@@ -333,15 +314,7 @@ class DatasetReorganized(Dataset):
             current_start_point += data.shape[0]
             logger.info(f"Completed {datapath}")
 
-        hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
-        labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
-        self.solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
-        # self.solar_indices = pd.read_csv(hourly_path, delim_whitespace=True, names=labels)
-
-        daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
-        self.solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
-        # self.solar_indices_daily = pd.read_csv(daily_path, delim_whitespace=True, names=labels)
-            
+        self.solar_indices_daily, self.solar_indices_hourly = get_solar_indices(solar_indices_path)
         self.length = current_start_point
 
     def __getitem__(self, index: int) -> tuple[torch.tensor, torch.tensor]:
@@ -366,31 +339,10 @@ class DatasetReorganized(Dataset):
         # NOTE: When reorganizing the data it got annoying to create a new column for day but overwriting an
         # existing column was straightforward, so I saved the doy in gphase
         doy = row['gfphase']
-        # doy = row['doy']
         sod = row['sod']
         
-        daily_solar_indices = get_daily_solar_indices(year, int(doy), self.solar_indices_daily)
-        hourly_solar_indices = get_hourly_solar_indices(year, int(doy), sod, self.solar_indices_hourly)
-        
-        optional_features_dict = {
-            'kp_index_hourly': hourly_solar_indices[0],
-            'r_index_hourly': hourly_solar_indices[1],
-            'dst_index_hourly': hourly_solar_indices[2],
-            'f_index_hourly': hourly_solar_indices[3],
-            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
-            'year': year,
-            'kp_index_daily': daily_solar_indices[0],
-            'r_index_daily': daily_solar_indices[1],
-            'dst_index_daily': daily_solar_indices[2],
-            'f_index_daily': daily_solar_indices[3],
-        }
-
-        optional_features_values = []
-        for tier in self.optional_features:
-            for feature in self.optional_features[tier]:
-                optional_features_values.append(optional_features_dict[feature])
-                
-        x, y = get_features_from_row(row, optional_features_values)
+        optional_features_values = self.get_optional_features(year, doy, sod)
+        x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         
         return x, y
 
@@ -406,8 +358,8 @@ class DatasetReorganized(Dataset):
             datapath_info["file"].close()
 
 
-class DatasetSA(Dataset):
-    def __init__(self, df, optional_features = ['doi', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
+class DatasetSA(DatasetGNSS):
+    def __init__(self, df, solar_indices_path, optional_features = ['doi', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
         df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
         print(df.columns)
         df['time'] = pd.to_datetime(df['time'])
@@ -424,22 +376,20 @@ class DatasetSA(Dataset):
             self.optional_features = optional_features
         self.use_spheric_coords = use_spheric_coords
         self.normalize_features = normalize_features
+        self.solar_indices_daily, self.solar_indices_hourly = get_solar_indices(solar_indices_path)
 
 
     def __getitem__(self, index):
         row = self.df.iloc[index].copy()
         year = float(row['year'])
         doy = float(row['doy'])
-        optional_features_dict = {
-            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
-            'year': year
-        }
+        sod = float(row['sod'])
+        optional_features_values = self.get_optional_features(year, doy, sod)
         if self.satazi is None:
             row["satazi"] = 360*np.random.uniform()
         else:
             row["satazi"] = self.satazi
 
-        optional_features_values = [val for key, val in optional_features_dict.items() if key in self.optional_features]
         x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         return x, y
 
