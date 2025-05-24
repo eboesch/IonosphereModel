@@ -73,7 +73,7 @@ if __name__ == "__main__":
         print(data.shape)
         data = data[data['time'].dt.year == year]
         print(data.shape)
-        dataset_test = DatasetSA(data, model_config['optional_features'], None, use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
+        dataset_test = DatasetSA(data, solar_indices_path=solar_indices_path, optional_features=model_config['optional_features'], satazi=None, use_spheric_coords=model_config["use_spheric_coords"], normalize_features=model_config["normalize_features"])
 
     else:
         assert False
