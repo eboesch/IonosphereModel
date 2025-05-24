@@ -82,6 +82,31 @@ def get_features_from_row(row: NDArray, optional_features_values: list, use_sphe
     y = torch.tensor([row['stec']]) # label
     return x, y
 
+def get_only_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
+    if use_spheric_coords:
+        angle_coords = [
+            np.cos(2 * np.pi * row['satele'] / 360) * np.cos(2 * np.pi * row['satazi'] / 360),
+            np.cos(2 * np.pi * row['satele'] / 360) * np.sin(2 * np.pi * row['satazi'] / 360),
+            np.sin(2 * np.pi * row['satele'] / 360)
+        ]
+
+    else:
+        angle_coords = [
+            np.sin(2 * np.pi * row['satazi'] / 360),
+            np.cos(2 * np.pi * row['satazi'] / 360),
+            row['satele'] if not normalize_features else row['satele'] / 45 - 1.0,
+        ]
+    x = torch.tensor(
+            [
+                row['sm_lat_ipp'] if not normalize_features else row['sm_lat_ipp'] / 90,
+                np.sin(2 * np.pi * row['sm_lon_ipp'] / 360),
+                np.cos(2 * np.pi * row['sm_lon_ipp'] / 360),
+                np.sin(2 * np.pi * row['sod'] / 86400),
+                np.cos(2 * np.pi * row['sod'] / 86400), 
+            ] + angle_coords + optional_features_values,
+            dtype=torch.float32
+        )
+    return x
 
 def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
     if pytables:
@@ -447,3 +472,91 @@ if __name__ == "__main__":
     train_dataset = DatasetIndices(datapaths_train, 'train', logger, True, config['solar_indices_path'], optional_features = config['optional_features'])
     train_dataset[10]
     train_dataset.__del__()
+
+
+class DatasetArtificial(Dataset):
+    # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
+    def __init__(self, artificial_df, doy, year, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
+        """
+        Creates an instance of DatasetGNSS. 
+        
+        Attributes:
+            datapaths_info :    List of dictionaries. Each dictionary contains: datapath, year, doy, indices 
+                (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
+                of a file in the dataset.
+            stations :  list of all stations matching the given split type, encoded to bytes.
+            lenght :    length of the Dataset
+        """
+
+        self.optional_features = optional_features or []
+        if type(self.optional_features) == dict:
+            for tier in self.optional_features:
+                self.optional_features[tier] = self.optional_features[tier] or []
+
+        self.data = artificial_df
+        
+        
+        self.use_spheric_coords = use_spheric_coords
+        self.normalize_features = normalize_features
+
+        hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
+        labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
+        self.solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
+        # self.solar_indices = pd.read_csv(hourly_path, delim_whitespace=True, names=labels)
+
+        daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
+        self.solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
+        # self.solar_indices_daily = pd.read_csv(daily_path, delim_whitespace=True, names=labels)
+        self.doy = doy
+        self.year = year
+            
+            
+
+    def __getitem__(self, index: int) -> tuple[torch.tensor, torch.tensor]:
+        """
+        Loads and returns a sample from the dataset at the given index as a tensor. 
+        Features are transformed as necessary. 
+        """
+        # iterate through all datapaths to find the file that contains our desired index
+
+        doy = float(self.doy)
+        year = float(self.year)
+
+        row = self.data.iloc[index]
+        sod = row['sod']
+        
+        daily_solar_indices = get_daily_solar_indices(year, int(doy), self.solar_indices_daily)
+        hourly_solar_indices = get_hourly_solar_indices(year, int(doy), sod, self.solar_indices_hourly)
+        
+        optional_features_dict = {
+            'kp_index_hourly': hourly_solar_indices[0],
+            'r_index_hourly': hourly_solar_indices[1],
+            'dst_index_hourly': hourly_solar_indices[2],
+            'f_index_hourly': hourly_solar_indices[3],
+            'doy': doy if not self.normalize_features else doy / 183 - 1.0,
+            'year': year,
+            'kp_index_daily': daily_solar_indices[0],
+            'r_index_daily': daily_solar_indices[1],
+            'dst_index_daily': daily_solar_indices[2],
+            'f_index_daily': daily_solar_indices[3],
+        }
+
+        optional_features_values = []
+        if type(self.optional_features) == dict:
+            for tier in self.optional_features:
+                for feature in self.optional_features[tier]:
+                    optional_features_values.append(optional_features_dict[feature])
+        else:
+            for feature in self.optional_features:
+                optional_features_values.append(optional_features_dict[feature])
+
+        x = get_only_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
+        
+        return x
+        
+    def __len__(self):
+        """
+        Returns length of the dataset in use.
+        """
+        return len(self.data)
+    
