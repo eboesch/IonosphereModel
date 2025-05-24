@@ -7,27 +7,31 @@ pytables: false # make sure to set to True when running locally or in login node
 optional_features:
   - "doy"
   - "year"
-  - "kp_index_daily"
-  - "r_index_daily"
-  - "dst_index_daily"
-  - "f_index_daily"
+  - "kp_index_hourly"
+  - "r_index_hourly"
+  - "dst_index_hourly"
+  - "f_index_hourly"
+  # - "kp_index_daily"
+  # - "r_index_daily"
+  # - "dst_index_daily"
+  # - "f_index_daily"
 use_spheric_coords: false
 normalize_features: false
 
  
 # model params
 # pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-04-30-14-05-28/" # 4+1
-# pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-04-30-21-02-28/" # full
+# pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-19-17-11-14/" # full
 # pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-04-30-23-22-21/" # 4+2
 # pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-01-16-14-32/" # 6+3
 # pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-01-23-02-56/" # 4+2 batch size 4096
 # pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-04-12-10-18/" # 4+2 MAE training loss
 # pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-10-17-39-31/" # daily solar indices 4+2 MAE training loss
-# pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-10-21-34-55/" # hourly solar indices 4+2 MAE training loss
-pretrained_model_path: null   
+pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-19-15-24-01/" # hourly solar indices 4+2 MAE training loss
+# pretrained_model_path: null   
 training_loss: "MAE"
 model_type: "FCN"
-num_hidden_layers: 4
+num_hidden_layers: 7
 hidden_size: 256
 
 # time period

@@ -130,6 +130,7 @@ if __name__ == "__main__":
         raise ValueError("Unfamiliar training loss function.")
     logger.info(f"Using {loss_type} for training")    
     mse_loss = nn.MSELoss() # used for comparison with previous models
+    # mae_loss = nn.L1Loss() # used for comparison with previous models
     
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
 
@@ -140,7 +141,9 @@ if __name__ == "__main__":
 
     mse_val_loss = test(dataloader_val, model, mse_loss, device)
     logger.info(f"MSE Validation Loss: {mse_val_loss:>7f}") # for sake of comparison to previous models, reporting MSE validation loss
-        
+    
+    # mae_val_loss = test(dataloader_val, model, mae_loss, device)
+    # logger.info(f"MAE Validation Loss: {mae_val_loss:>7f}")
     
     for t in range(epochs):
         logger.info("-------------------------------\nEpoch %s\n-------------------------------", t+1)
@@ -151,6 +154,9 @@ if __name__ == "__main__":
         mse_val_loss = test(dataloader_val, model, mse_loss, device)
         logger.info(f"MSE Validation Loss: {mse_val_loss:>7f}") # for sake of comparison to previous models, reporting MSE validation loss
         
+        # mae_val_loss = test(dataloader_val, model, mae_loss, device)
+        # logger.info(f"MAE Validation Loss: {mae_val_loss:>7f}")
+
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path + "model.pth")

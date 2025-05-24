@@ -359,7 +359,7 @@ class DatasetReorganized(DatasetGNSS):
 
 
 class DatasetSA(DatasetGNSS):
-    def __init__(self, df, solar_indices_path, optional_features = ['doi', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
+    def __init__(self, df, solar_indices_path, optional_features = ['doy', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
         df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
         print(df.columns)
         df['time'] = pd.to_datetime(df['time'])
