@@ -64,6 +64,12 @@ finetuned_model_dict = {
     "model_2025-05-05-13-37-53/": "from scratch, 4, MAE", 
     "model_2025-05-11-15-32-59/": "hourly solar indices, 4+2, MAE",
     "model_2025-05-11-16-53-38/": "daily solar indices, 4+2, MAE",
+    "model_2025-05-19-15-22-50/": "4+2 MSE",
+    "model_2025-05-20-09-58-46/": "6 MSE",
+    "model_2025-05-19-15-51-39/": "6 MSE bad run",
+    "model_2025-05-19-16-24-04/": "From scratch MSE",
+    "model_2025-05-19-16-44-58/": "From scratch MSE 7",
+    "model_2025-05-20-11-23-28/": "From scratch with daily solar indices"
 }
 
 # flip dictionary
@@ -82,27 +88,31 @@ if MODEL_TYPE == "finetuned":
     # model_labels = ["from scratch, 4, MAE", "4+2, MAE"]
     # model_labels = ["4+2, MAE", "4+2, MAE 0.5 FT LR", "4+2, MAE bad formatting"]
     # model_labels = ["4+2", "4+2, MAE", "from scratch, 4, MAE", "hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
-    model_labels = ["hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
+    # model_labels = ["hourly solar indices, 4+2, MAE", "daily solar indices, 4+2, MAE"]
+    # model_labels = ["From scratch MSE", "6 MSE", "4+2 MSE"]
+    # model_labels = ["From scratch with daily solar indices", "daily solar indices, 4+2, MAE"]
+    model_labels = ["From scratch MSE", "6 MSE", "4+2 MSE"] + ["From scratch with daily solar indices", "daily solar indices, 4+2, MAE"]
+
 
     models = [finetuned_model_dict[model] for model in model_labels]
 
 
 
-fig, ax = plt.subplots(figsize=(12,8))
+fig, ax = plt.subplots(figsize=(16,8))
 
 test_losses = {}
 
 for model in models:
     log_path = models_path + model + "logs.log"
     mse_val_losses = []
-    val_losses = []
+    mae_val_losses = []
     with open(log_path, "r") as file:
         for line in file:
-            if 'Validation' in line:
+            if 'MSE Val' in line:
                 mse_val_losses.append(float(line.split(' ')[-1]))
 
-            if 'Val ' in line:
-                val_losses.append(float(line.split(' ')[-1]))
+            if 'MAE Val' in line:
+                mae_val_losses.append(float(line.split(' ')[-1]))
     
             if "Evaluation" in line:
                 test_losses[model] = float(line.split(' ')[-1])
@@ -118,19 +128,35 @@ for model in models:
 
     """validation loss same as chosen training loss -> only works on newer models"""
     # doesn't include zero-shot loss
-    ax.plot(range(1, len(val_losses)), val_losses[1:], label = model)
+    # ax.plot(range(1, len(mae_val_losses)), mae_val_losses[1:], label = model)
 
     # includes zero-shot loss
-    # ax.plot(range(0, len(val_losses)), val_losses, label = model)
+    ax.plot(range(0, len(mae_val_losses)), mae_val_losses, label = model, zorder=3)
+
+
+# model_labels = ["FCN with no Pretraining and MSE", "FCN with Pretraining and MSE", "TwoStage with Pretraining and MSE"]
+# model_labels = ["FCN with no Pretraining and Daily Solar Indices", "TwoStage with Pretraining and Daily Solar Indices", "Final Val Loss of FCN Model with no Pretraining"]
+model_labels = ["FCN with no Pretraining, \nMSE and no Solar Indices", "FCN with Pretraining, \nMSE and no Solar Indices", "TwoStage with Pretraining, \nMSE and no Solar Indices"] + ["FCN with no Pretraining, \nMAE and Daily Solar Indices", "TwoStage with Pretraining, \nMAE and Daily Solar Indices", "Final Val Loss of FCN Model \nwith no Pretraining but \nDaily Solar Indices"]
+
 
 pp(test_losses)
-# ax.set_ylim([0,300])
+# ax.set_ylim([2,20])
+ax.set_ylim(top=15)
+# ax.set_ylim([0,15])
+# ax.set_yscale('log')
 # ax.axhline(40.94, c="k") # for final val loss when training from scratch
-# ax.axhline(3.98, c="k") # for final val loss when training from scratch
-fig.legend(labels=model_labels, loc="center right", bbox_to_anchor=(1, 0.5))
-fig.subplots_adjust(right=0.75)
-fig.supxlabel("Epoch")
-fig.supylabel("Validation Loss")
-fig.suptitle("Validation Loss During Training", fontsize=20)
+ax.axhline(3.16, c="darkgrey", zorder=1) # for final val loss when training from scratch
+ax.tick_params(axis='both', which='major', labelsize=14)
+fig.legend(labels=model_labels, loc="center right", fontsize = 14, bbox_to_anchor=(0.93, 0.5))
+# ax.legend(labels=model_labels, loc="upper right", fontsize=14)
+fig.subplots_adjust(right=0.7)
+ax.set_xlabel("Epoch", fontsize=18, labelpad=8)
+ax.set_ylabel("MAE Validation Loss", fontsize=18, labelpad=8)
+ax.set_title("Validation Loss During Training", fontsize=24, pad=14)
+# ax.set_tight_layout()
+# fig.supxlabel("Epoch", fontsize=16)
+# fig.supylabel("Validation Loss", fontsize=16)
+# fig.suptitle("MAE Validation Loss During Training", fontsize=24)
+# fig.tight_layout()
 
 fig.savefig(outpath)
