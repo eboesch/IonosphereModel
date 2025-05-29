@@ -113,10 +113,11 @@ The inferences script generates an inferences subfolder within the model folder 
 
 ## Evaluation
 Elena talk about plots with val loss
-Martin talk about analysis.ipynb
+`analysis.ipynb` takes in an inference file and calcules the MAE. It then breaks down the MAE by region, local time and elevation angle.
 
 ## Video
-Martin
+
+`video/global_inference.py` calculates model inferences for every part of the world for an entire day. `video/make_video.ipynb` creates visualizations of those inferences and stiches them together to make a video.
 
 ## Miscellaneous
 Nerf stuff
