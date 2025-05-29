@@ -112,8 +112,12 @@ Inferences can be run for the training, validation or test split for the data co
 The inferences script generates an inferences subfolder within the model folder for the model used to run inferences. The Mean Absolute Error and Mean Squared Error are saved in a csv file `metrics.csv`. The model predictions, labels, and features for each entry in the dataset are stored in `inferences.csv`.
 
 ## Evaluation
-Elena talk about plots with val loss
+Elena talk about plots with val loss 
+
+
 `analysis.ipynb` takes in an inference file and calcules the MAE. It then breaks down the MAE by region, local time and elevation angle.
+
+
 ![image](https://github.com/user-attachments/assets/dfeb281d-dcd0-401d-b592-e227ac6bcfdf)
 
 ## Video
