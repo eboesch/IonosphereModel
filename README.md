@@ -73,7 +73,7 @@ If training on a local machine, simply run
 ```bash
 python run_training.py
 ```
-Every time a model is trained, a folder is created to store the model weights, training log, and config file used to launch the training.
+Every time a model is trained, a folder is created to store the model weights, training log, and config file used to launch the training. The folder name is associated to the timestamp of the training start and is used as a model id. 
 
 ### Training config
 
@@ -81,6 +81,8 @@ The training script is parametrized by a config file, which is specified in the 
 - `num_workers` is the number of cpus that will be used in the DataLoader. We recommend 8-32. In the `srun` arguments, set `--cpus-per-task` to the same number as `num_workers`. If the number of cpus is large, the `--mem-per-cpu` argument can be set to a lower number to keep the total shared memory constant.
 - `use_reorganized_data`: Whether to use the original dataset for training (`false`) or the reorganized dataset (`true`). Set to `true` for pretraining and to `false` for fine-tuning.
 - `pretrained_model_path`: Path to a pretrained model. If specified, the weights of such model will be loaded for training and the architecture related config parameters will be ignored. If set to `null`, a new model is initialized with random weights using the architecture related config parameters. For pretraining or training a model from scratch, we set `pretrained_model_path` to `null`. For fine-tuning, `pretrained_model_path` needs to point to the desired pretrained model folder.
+
+Check the config files under `config/` for a full description of each variable parametrizing the trainings.
 
 ### Available configs: Pretraining, fine-tuning and mock trainings
 
@@ -97,7 +99,17 @@ BLA BLA BLA
 
 
 ## Inferences
-Hector talk about inferences script
+The script `run_inferences.py` is used to run inferences for a given model. It is parametrized by the `config/inferences_config.yaml` file. In order to run inferences for a given model, specify the `model_path` variable within the inferences config file, and run (in the Euler cluster)
+```bash
+srun --ntasks=1 --cpus-per-task=8 --mem-per-cpu=8192 -G 1 -t 600 -o file.out -e file.err python run_inferences.py &
+```
+If running on a local machine, simply run
+```bash
+python run_inferences.py
+```
+Inferences can be run for the training, validation or test split for the data corresponding to a short period of time (typically one day). They can also be run on an additional satellite altimetry test dataset (check the variable `evaluation_data` within `config/inferences_config.yaml`).
+
+The inferences script generates an inferences subfolder within the model folder for the model used to run inferences. The Mean Absolute Error and Mean Squared Error are saved in a csv file `metrics.csv`. The model predictions, labels, and features for each entry in the dataset are stored in `inferences.csv`.
 
 ## Evaluation
 Elena talk about plots with val loss
