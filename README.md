@@ -63,6 +63,8 @@ python dataset/reorganize_data.py
 ```
 The parameters for the data reorganization (time period for which to subsample and reorganize the data, subsampling ratio, etc.) are contained in the config file `config/reorganize_data_config.yaml`.
 
+### Solar Indices? Elena decides where it is better to talk about them
+
 ## Training
 
 Models can be trained on the Euler cluster with
@@ -81,6 +83,7 @@ The training script is parametrized by a config file, which is specified in the 
 - `num_workers` is the number of cpus that will be used in the DataLoader. We recommend 8-32. In the `srun` arguments, set `--cpus-per-task` to the same number as `num_workers`. If the number of cpus is large, the `--mem-per-cpu` argument can be set to a lower number to keep the total shared memory constant.
 - `use_reorganized_data`: Whether to use the original dataset for training (`false`) or the reorganized dataset (`true`). Set to `true` for pretraining and to `false` for fine-tuning.
 - `pretrained_model_path`: Path to a pretrained model. If specified, the weights of such model will be loaded for training and the architecture related config parameters will be ignored. If set to `null`, a new model is initialized with random weights using the architecture related config parameters. For pretraining or training a model from scratch, we set `pretrained_model_path` to `null`. For fine-tuning, `pretrained_model_path` needs to point to the desired pretrained model folder.
+- `optional_features`: ELENA
 
 Check the config files under `config/` for a full description of each variable parametrizing the trainings.
 
