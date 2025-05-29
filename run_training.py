@@ -23,7 +23,7 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print("Started ", timestamp)
 
-    config_path = "config/training_config.yaml"
+    config_path = "config/training_mock_config.yaml"
 
     # set up folders
     with open(config_path, 'r') as file:
