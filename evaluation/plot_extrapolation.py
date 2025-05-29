@@ -32,18 +32,22 @@ fig, ax = plt.subplots(figsize=(12,8))
 
 # selection = [""]
 
+val_diff = FCN_val_loss-TS_val_loss
+test_diff =  FCN_test_loss-TS_test_loss
 # ax.plot(days, FCN_val_loss, label="FCN_val_loss")
 # ax.plot(days, FCN_test_loss, label="FCN_test_loss")
 # ax.plot(days, TS_val_loss, label="TS_val_loss")
 # ax.plot(days, TS_test_loss, label="TS_test_loss")
-ax.plot(days, TS_zeroshot_loss, label="TS_zeroshot_loss")
-# ax.plot(days, FCN_val_loss-TS_val_loss, label="val diff")
-# ax.plot(days, FCN_test_loss-TS_test_loss, label="test diff")
+# ax.plot(days, TS_zeroshot_loss, label="TS_zeroshot_loss")
+ax.plot(days, FCN_val_loss-TS_val_loss, label="val diff")
+ax.plot(days, FCN_test_loss-TS_test_loss, label="test diff")
 # ax.plot(days, TS_zeroshot_loss-TS_val_loss, label="zeroshot - val")
-ax.plot(days, TS_zeroshot_loss-TS_test_loss, label="zeroshot - test")
+# ax.plot(days, TS_zeroshot_loss-TS_test_loss, label="zeroshot - test")
+# ax.plot(days, TS_zeroshot_loss/FCN_test_loss, label="zeroshot / test")
 
 # model_labels = []
-
+pp(val_diff)
+pp(test_diff)
 
 
 # ax.set_ylim([2,20])

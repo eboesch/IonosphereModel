@@ -3,8 +3,6 @@ model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025
 # model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-20-18-25-42/" # daily solar indices
 # model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-04-21-40-49/" # no solar indices
 
-
-
 # evaluation period
 same_day_as_training: true
 # only used if same_day_as_training is False
