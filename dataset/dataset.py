@@ -13,7 +13,10 @@ import os
 import pandas as pd
 
 
-def get_solar_indices(solar_indices_path):
+def get_solar_indices(solar_indices_path: str):
+    """
+    
+    """
     hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
     labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
     solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
@@ -118,7 +121,7 @@ class DatasetGNSS(Dataset):
     optional_features: list | dict
     normalize_features: bool
 
-    def get_optional_features(self, year, doy, sod):
+    def get_optional_features(self, year: int, doy: int, sod:int ):
         optional_features_dict = {
             'doy': doy if not self.normalize_features else doy / 183 - 1.0,
             'year': year,
@@ -165,7 +168,17 @@ class DatasetGNSS(Dataset):
 
 class DatasetIndices(DatasetGNSS):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
+    def __init__(
+            self, 
+            datapaths: list[str], 
+            split: str, 
+            logger: Logger, 
+            pytables: bool, 
+            solar_indices_path: str, 
+            optional_features: list[str] = ['doy', 'year'], 
+            use_spheric_coords: bool = False, 
+            normalize_features: bool = False
+    ):
         """
         Creates an instance of DatasetGNSS. 
         
@@ -222,7 +235,7 @@ class DatasetIndices(DatasetGNSS):
             
         self.length = current_start_point
             
-    def _get_indices(self, data, pytables) -> NDArray:
+    def _get_indices(self, data, pytables: bool) -> NDArray:
         """
         Returns the indices of all datapoints whose stations is in the current datasplit.
         """
@@ -277,7 +290,7 @@ class DatasetIndices(DatasetGNSS):
 
 class DatasetReorganized(DatasetGNSS):
     # NOTE: split is only passed to match the same signature as DatasetIndices
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path, optional_features = ['doy', 'year'], use_spheric_coords=False, normalize_features=False):
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path: str, optional_features: list[str] = ['doy', 'year'], use_spheric_coords: bool = False, normalize_features: bool = False):
 
         self.optional_features = optional_features or []
         if type(self.optional_features) == dict:
@@ -337,7 +350,7 @@ class DatasetReorganized(DatasetGNSS):
         row = data[index - start_point]
 
         # NOTE: When reorganizing the data it got annoying to create a new column for day but overwriting an
-        # existing column was straightforward, so I saved the doy in gphase
+        # existing column was straightforward, so we saved the doy in gphase
         doy = row['gfphase']
         sod = row['sod']
         
@@ -359,7 +372,7 @@ class DatasetReorganized(DatasetGNSS):
 
 
 class DatasetSA(DatasetGNSS):
-    def __init__(self, df, solar_indices_path, optional_features = ['doy', 'year'], satazi=None, use_spheric_coords=False, normalize_features=False):
+    def __init__(self, df, solar_indices_path: str, optional_features: list[str] = ['doy', 'year'], satazi=None, use_spheric_coords: bool = False, normalize_features: bool = False):
         df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
         print(df.columns)
         df['time'] = pd.to_datetime(df['time'])

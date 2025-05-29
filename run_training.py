@@ -25,6 +25,7 @@ if __name__ == "__main__":
 
     config_path = "config/training_config.yaml"
 
+    # set up folders
     with open(config_path, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     dslab_path = config["dslab_path"]
@@ -41,6 +42,7 @@ if __name__ == "__main__":
     os.makedirs(model_path)
     shutil.copy(config_path, model_path + "trainig_config.yaml")
 
+    # fetch training configuration
     learning_rate = config["learning_rate"]
     batch_size = config["batch_size"]
     epochs = config["epochs"]
@@ -55,7 +57,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(10)
     logging.basicConfig(handlers=[logging.FileHandler(model_path + 'logs.log'), logging.StreamHandler()], level=logging.INFO, format='%(asctime)s | %(message)s', datefmt='%H:%M')
-    logger.info("-------------------------------------------------------\nStarting Script\n-------------------------------------------------------")
+    logger.info("--------------------------------------------\nStarting Script\n--------------------------------------------")
 
     device = torch.accelerator.current_accelerator().type if torch.cuda.is_available() else "cpu"
     logger.info("Using %s device", device)
@@ -64,6 +66,7 @@ if __name__ == "__main__":
     logger.info(f"batch_size: {batch_size}")
     logger.info(f"epochs: {epochs}")
 
+    # collect datapaths for all training data
     if use_reorganized_data:
         reorganized_datapath = config["dslab_path"] + config["reorganized_data_dir_name"] + "/"
         years_dict = config["years"]
@@ -96,6 +99,7 @@ if __name__ == "__main__":
         datapaths_train = datapaths_val = datapaths_test = datapaths
         dataset_class = DatasetIndices
 
+    # Fetching datasets
     logger.info("Fetching datasets...")
 
     dataset_train = dataset_class(datapaths_train, "train", logger, pytables=pytables, solar_indices_path=config['solar_indices_path'], optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
@@ -105,12 +109,13 @@ if __name__ == "__main__":
     dataset_test = dataset_class(datapaths_test, "test", logger, pytables=pytables, solar_indices_path=config['solar_indices_path'], optional_features=config['optional_features'], use_spheric_coords=config["use_spheric_coords"], normalize_features=config["normalize_features"])
     logger.info(f"Total length of Training Dataset = {dataset_train.__len__()*1e-6:.2f} Mil")
 
+    # Preparing dataloaders
     logger.info("Preparing DataLoaders...")
     dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-
+    # Setting up model
     logger.info("Setting up Model...")
     pretrained_model_path = config["pretrained_model_path"]
     if pretrained_model_path is None:
@@ -121,42 +126,42 @@ if __name__ == "__main__":
     model = model.to(device)
     logger.info("Model: %s", model)
 
-    loss_type = config["training_loss"]
-    if loss_type == "MSE":
-        loss = nn.MSELoss()
-    elif loss_type == "MAE": 
-        loss = nn.L1Loss()
+    training_loss_type = config["training_loss"]
+    if training_loss_type == "MSE":
+        training_loss = nn.MSELoss() # to be able to compare models regardless of training loss, 
+        alt_loss_type = "MAE"        # we report the validation loss of both MSE *and* MAE loss
+        alt_loss = nn.L1Loss()       
+    elif training_loss_type == "MAE": 
+        training_loss = nn.L1Loss()
+        alt_loss_type = "MSE"
+        alt_loss = nn.MSELoss()
     else:
         raise ValueError("Unfamiliar training loss function.")
-    logger.info(f"Using {loss_type} for training")    
-    mse_loss = nn.MSELoss() # used for comparison with previous models
-    # mae_loss = nn.L1Loss() # used for comparison with previous models
+    logger.info(f"Using {training_loss_type} for training")    
     
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
 
+
+    # Staring training
     logger.info("Starting training...")
     best_val_loss = float('inf')
-    val_loss = test(dataloader_val, model, loss, device)
-    logger.info(f"{loss_type} Val Loss: {val_loss:>7f}")
 
-    mse_val_loss = test(dataloader_val, model, mse_loss, device)
-    logger.info(f"MSE Validation Loss: {mse_val_loss:>7f}") # for sake of comparison to previous models, reporting MSE validation loss
-    
-    # mae_val_loss = test(dataloader_val, model, mae_loss, device)
-    # logger.info(f"MAE Validation Loss: {mae_val_loss:>7f}")
-    
+    # compute zero-shot val loss
+    val_loss = test(dataloader_val, model, training_loss, device)
+    logger.info(f"{training_loss_type} Val Loss: {val_loss:>7f}")
+
+    alt_val_loss = test(dataloader_val, model, alt_loss, device)
+    logger.info(f"{alt_loss_type} Val Loss: {alt_val_loss:>7f}") 
+
     for t in range(epochs):
         logger.info("-------------------------------\nEpoch %s\n-------------------------------", t+1)
-        train_single_epoch(dataloader_train, model, loss, optimizer, device, logger,log_interval=3000)
-        val_loss = test(dataloader_val, model, loss, device)
-        logger.info(f"{loss_type} Val Loss: {val_loss:>7f}")
+        train_single_epoch(dataloader_train, model, training_loss, optimizer, device, logger,log_interval=3000)
+        val_loss = test(dataloader_val, model, training_loss, device)
+        logger.info(f"{training_loss_type} Val Loss: {val_loss:>7f}")
 
-        mse_val_loss = test(dataloader_val, model, mse_loss, device)
-        logger.info(f"MSE Validation Loss: {mse_val_loss:>7f}") # for sake of comparison to previous models, reporting MSE validation loss
+        alt_val_loss = test(dataloader_val, model, alt_loss, device)
+        logger.info(f"{alt_loss_type} Val Loss: {alt_val_loss:>7f}")
         
-        # mae_val_loss = test(dataloader_val, model, mae_loss, device)
-        # logger.info(f"MAE Validation Loss: {mae_val_loss:>7f}")
-
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path + "model.pth")
@@ -167,9 +172,9 @@ if __name__ == "__main__":
         
     logger.info("Training completed.")
 
-
+    # evaluation
     logger.info("Starting evaluation...")
-    model = load_model(model_path)
+    model = load_model(model_path) # load the best model
     model = model.to(device)
     eval_loss_fct = nn.L1Loss()
     test_loss = test(dataloader_test, model, eval_loss_fct, device)
