@@ -30,7 +30,7 @@ The codebase allows to:
 
 The code is designed to run in the ETHZ Euler cluster. The Python environment has been tested on Euler. Pretrainings on Euler take 2-6 hours depending on the amount of data. While the testing coverage for the code outside has been less extense, the following instructions can also be followed outside Euler and everything should work. Training and inference times will depend on the user's available resources.
 
-The datasets used for this project are private. However, we provide a small mock dataset with random numbers with the same schema as the real dataset which can be used to run end to end the training code. This example can be found under the section [Training](#training).
+The datasets used for this project have not yet been published. In order to illustrate how the training code runs end-to-end, the folder `example_code` contains a very small subset of the dataset. Check the section [Example training code](#example-training-code) to find out how to run the example code without the need of having the full dataset. 
 
 ## Installation
 - Clone the repository with `git clone git@github.com:eboesch/IonosphereModel.git`
@@ -92,14 +92,15 @@ Check the config files under `config/` for a full description of each variable p
 We provide multiple config files for different functionalities:
 
 - `config/training_config.yaml` can be used to fine-tune models or to train models initialized with random weights on data corresponding to a short time period. Whether a pretrained model is used or not is determined by the `pretrained_model_path` in the config file, see the section above.
-- `config/training_mock_config.yaml`can be used to train a model from scratch on the mock dataset.
+- `config/training_mock_config.yaml` can be used to launch a mock training that shows the training code running end-to-end. See the subsection [Example training code](#example-training-code)
 - `config/pretraining_config.yaml` can be used to pretrain models on data corresponding to a large period of time (see the section [Data Reorganization](#data-reorganization)).
 
 
-### Launching mock trainings
-BLA BLA BLA
+### Example training code
 
+Make sure that the `config_path` variable at the beginning of the `run_training.py` file points to `config/training_mock_config.yaml` (should be set as default) and run the training script as described at the beginning of this section. This launches a training with randomly initialized weights on a subset of 20000 random rows of the dataset for day 183 in year 2024. The training uses daily solar indices as additional input features for the model. All the necessary data for the example training is contained in the `example_code` folder. The generated model folder for the training will be stored also under `example_code`.
 
+The purpose of this example code is to illustrate how models are trained and how the code runs end-to-end without the need of sharing the full dataset. However, due to the very small dataset size considered, models trained on this subset are not expected to perform well.
 
 ## Inferences
 The script `run_inferences.py` is used to run inferences for a given model. It is parametrized by the `config/inferences_config.yaml` file. In order to run inferences for a given model, specify the `model_path` variable within the inferences config file, and run (in the Euler cluster)
