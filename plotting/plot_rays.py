@@ -5,9 +5,9 @@ import h5py
 from matplotlib import pyplot as plt
 from matplotlib import colormaps
 
-datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/322/ccl_2024322_30_5.h5"
+datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/300/ccl_2024300_30_5.h5"
 file = h5py.File(datapath, 'r')
-data = file["2024"]["322"]["all_data"]
+data = file["2024"]["300"]["all_data"]
 
 data = data[(data["sod"] <= 0)]
 

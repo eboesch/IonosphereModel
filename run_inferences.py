@@ -56,6 +56,7 @@ if __name__ == "__main__":
         year = inferences_config["year"]
         n = inferences_config["num_days"]
 
+    # fetch data
     evaluation_data = inferences_config["evaluation_data"]
     if evaluation_data in ["train", "val", "test"]:
         datapath = model_config["datapath"]
@@ -80,11 +81,14 @@ if __name__ == "__main__":
     
     logger.info(f"Total length of Test Dataset = {dataset_test.__len__()*1e-6:.2f} Mil")
     
+    # prepare dataloader
     dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
+    # load model
     model = load_model(inferences_config["model_path"])
     logger.info("Model: %s", model)
 
+    # start evaluation
     model = model.to(device)
     model.eval()
     num_batches = len(dataloader_test)
@@ -117,6 +121,7 @@ if __name__ == "__main__":
 
     model_id = inferences_config["model_path"].split("/")[-2]
 
+    # save all metrics
     out_path = inferences_config["model_path"] + f"inferences_{timestamp}/"
     os.makedirs(out_path, exist_ok = True)
     shutil.copy(inferences_config_path, out_path + "inferences_config.yaml")
@@ -142,8 +147,8 @@ if __name__ == "__main__":
         out_df["satele"] = features[:,7]
 
 
-        # NOTE: older models didn't have the two-tier format of optional_features.
-        # for the sake of backwards comptatibility we make this distinction here
+        # NOTE: Some of our older models had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if type(model_config["optional_features"]) == dict:
             initial = model_config["optional_features"]["initial"] or []
             delayed = model_config["optional_features"]["delayed"] or []

@@ -2,16 +2,21 @@ from torch import nn
 import torch.nn.functional as F
 from typing import Any
 import torch
+from torch.nn import Module
 import yaml
 
-def get_model(config: dict, input_size: int) -> Any:
+def get_model(config: dict, input_size: int) -> Module:
+    """
+    Creates a model as specified in the config dictionary.
+    """
+
     model_type = config["model_type"]
 
     if model_type == "FCN":
         model = FCN(input_size, config["num_hidden_layers"], config["hidden_size"], 1)
     elif model_type == "TwoStageModel":
-        # NOTE: older models didn't have the two-tier format of optional_features.
-        # for the sake of backwards comptatibility we make this distinction here
+        # NOTE: Some of our models didn't had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if type(config["optional_features"]) == dict:
             input_size = input_size - len(config["optional_features"]['delayed'])
             output_size_1 = config["output_size_1"] + len(config["optional_features"]['delayed'])
@@ -30,12 +35,16 @@ def get_model(config: dict, input_size: int) -> Any:
         )
     
     else:
-        assert False, f"model class {model_type} is not supported."
+        assert False, f"Model class {model_type} is not supported."
 
     return model
 
 
-def load_pretrained_model(pretrained_model_path: str):
+def load_pretrained_model(pretrained_model_path: str) -> Module:
+    """
+    Loads the pretrained model whose parameters are stored in the folder at pretrained_model_path.
+    """
+
     # NOTE: We are saving models with torch.save(model.state_dict), which makes the saved object a dictionary rather
     # than the full model class. For this reason, we have to reinstantiate the model class using the saved pretraining config.
     pretraining_config_path = pretrained_model_path + "trainig_config.yaml"
@@ -45,8 +54,8 @@ def load_pretrained_model(pretrained_model_path: str):
     model_state_dict = torch.load(pretrained_model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
     input_size = model_state_dict[list(model_state_dict.keys())[0]].shape[1]
     if pretraining_config["model_type"] == "TwoStageModel":
-        # NOTE: older models didn't have the two-tier format of optional_features.
-        # for the sake of backwards comptatibility we make this distinction here
+        # NOTE: Some of our models didn't had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if type(pretraining_config["optional_features"]) == dict:
             input_size += len(pretraining_config['optional_features']['delayed'])
         else:
@@ -69,15 +78,20 @@ def load_pretrained_model(pretrained_model_path: str):
     return model
 
 
-def load_model(model_path):
+def load_model(model_path: str) -> Module:
+    """
+    Loads the model whose parameters are stored in the folder at pretrained_model_path.
+    """
     model_config_path = model_path + "trainig_config.yaml"
     with open(model_config_path, 'r') as file:
         model_config = yaml.load(file, Loader=yaml.FullLoader)
 
+    # if the model is pretrained or trained from scratch, load it normally
     if model_config["pretrained_model_path"] is None:
         return load_pretrained_model(model_path)
     
     else:
+        # the model is finetuned, so we first need to load the pretrained model
         model = load_model(model_config["pretrained_model_path"])
         model_state_dict = torch.load(model_path + "model.pth", weights_only=False, map_location=torch.device('cpu'))
         model.load_state_dict(model_state_dict)
@@ -88,7 +102,7 @@ class FCN(nn.Module):
     Class for a fully connected model in pytorch.
     """
     
-    def __init__(self, input_size, num_hidden_layers, hidden_size, output_size=1):
+    def __init__(self, input_size: int, num_hidden_layers: int, hidden_size: int, output_size: int=1):
         super().__init__()
 
         self.layers = nn.ModuleList()
@@ -114,13 +128,13 @@ class FCN(nn.Module):
 class TwoStageModel(nn.Module):
     def __init__(
         self,
-        input_size_1,
-        num_hidden_layers_1,
-        hidden_size_1,
-        output_size_1,
-        input_size_2,
-        num_hidden_layers_2,
-        hidden_size_2,
+        input_size_1: int,
+        num_hidden_layers_1: int,
+        hidden_size_1: int,
+        output_size_1: int,
+        input_size_2: int,
+        num_hidden_layers_2: int,
+        hidden_size_2: int,
     ):
         super().__init__()
         self.input_size_1 = input_size_1
@@ -131,7 +145,7 @@ class TwoStageModel(nn.Module):
         x_1 = x[:, :self.input_size_1]
         x_2 = x[:, self.input_size_1:]
         h = self.fcn1(x_1)
-        hx_2 = torch.cat([h, x_2], dim=1)
+        hx_2 = torch.cat([h, x_2], dim=1) # incorporate inputs that are only given at the second stage
         out = self.fcn2(hx_2)
         return out
         
