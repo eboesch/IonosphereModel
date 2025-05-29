@@ -1,4 +1,4 @@
-model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-20-11-23-28/"
+model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-23-13-49-44/"
 # model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-11-15-32-59/" # hourly solar indices
 # model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-20-18-25-42/" # daily solar indices
 # model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/models/model_2025-05-04-21-40-49/" # no solar indices
@@ -16,5 +16,5 @@ num_days: 1
 save_inferences: true
 
 # one of train, val, test, SA 
-evaluation_data: "test"
+evaluation_data: "SA"
 sa_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/arno/sa_dataset.csv"
