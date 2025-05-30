@@ -153,8 +153,16 @@ for model in models2:
 
 
 # if you want to change the labels you can do it here
-# model_labels1 = ["FCN with no Pretraining, \nMSE and no Solar Indices", "FCN with Pretraining, \nMSE and no Solar Indices", "TwoStage with Pretraining, \nMSE and no Solar Indices"]
-# model_labels2 = ["FCN with no Pretraining, \nMAE and Daily Solar Indices", "TwoStage with Pretraining, \nMAE and Daily Solar Indices", "Final Val Loss of FCN Model \nwith no Pretraining but \nDaily Solar Indices"]
+# model_labels1 = [
+#     "FCN with no Pretraining, \nMSE and no Solar Indices",
+#     "FCN with Pretraining, \nMSE and no Solar Indices",
+#     "TwoStage with Pretraining, \nMSE and no Solar Indices",
+# ]
+# model_labels2 = [
+#     "FCN with no Pretraining, \nMAE and Daily Solar Indices",
+#     "TwoStage with Pretraining, \nMAE and Daily Solar Indices",
+#     "Final Val Loss of FCN Model \nwith no Pretraining but \nDaily Solar Indices",
+# ]
 
 
 pp(test_losses)

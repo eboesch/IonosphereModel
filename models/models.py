@@ -49,7 +49,8 @@ def load_pretrained_model(pretrained_model_path: str) -> Module:
     """
 
     # NOTE: We are saving models with torch.save(model.state_dict), which makes the saved object a dictionary rather
-    # than the full model class. For this reason, we have to reinstantiate the model class using the saved pretraining config.
+    # than the full model class. For this reason, we have to reinstantiate the model class using the saved pretraining
+    # config.
     pretraining_config_path = pretrained_model_path + "trainig_config.yaml"
     with open(pretraining_config_path, "r") as file:
         pretraining_config = yaml.load(file, Loader=yaml.FullLoader)

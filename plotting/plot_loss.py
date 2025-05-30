@@ -68,7 +68,14 @@ if MODEL_TYPE == "finetuned":
         "From scratch with daily solar indices",
         "daily solar indices, 4+2, MAE",
     ]
-    # model_labels = ["daily solar indices, 4+2, MAE", "Day 8, finetuned", "Day 16, finetuned", "Day 32, finetuned", "Day 64, finetuned"]
+    # model_labels = [
+    #     "daily solar indices, 4+2, MAE",
+    #     "Day 8, finetuned",
+    #     "Day 16, finetuned",
+    #     "Day 32, finetuned",
+    #     "Day 64,"
+    #     "finetuned"
+    # ]
 
     models = [finetuned_model_dict[model] for model in model_labels]
 
@@ -119,7 +126,18 @@ for model in models:
 
 
 # if you want to change the labels you can do it here
-# model_labels = ["FCN with no Pretraining, \nMSE and no Solar Indices", "FCN with Pretraining, \nMSE and no Solar Indices", "TwoStage with Pretraining, \nMSE and no Solar Indices"] + ["FCN with no Pretraining, \nMAE and Daily Solar Indices", "TwoStage with Pretraining, \nMAE and Daily Solar Indices", "Final Val Loss of FCN Model \nwith no Pretraining but \nDaily Solar Indices"]
+# model_labels = [
+#     "FCN with no Pretraining,"
+#     "\nMSE and no Solar Indices",
+#     "FCN with Pretraining,"
+#     "\nMSE and no Solar Indices",
+#     "TwoStage with Pretraining,"
+#     "\nMSE and no Solar Indices"
+# ] + [
+#     "FCN with no Pretraining, \nMAE and Daily Solar Indices",
+#     "TwoStage with Pretraining, \nMAE and Daily Solar Indices",
+#     "Final Val Loss of FCN Model \nwith no Pretraining but \nDaily Solar Indices"
+# ]
 
 
 pp(test_losses)

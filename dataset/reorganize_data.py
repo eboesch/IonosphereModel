@@ -1,4 +1,5 @@
-"""A script to take the original dataset and generate a new subsampled dataset with train, val, test data separated in different files."""
+"""A script to take the original dataset and generate a new subsampled dataset with train, val, test data separated in
+different files."""
 
 import os
 import tables
@@ -8,7 +9,7 @@ import shutil
 import yaml
 from joblib import Parallel, delayed
 
-# srun --ntasks=1 --cpus-per-task=6 --mem-per-cpu=4096 -t 600 -o file.out -e file.err python dataset/reorganize_data.py &
+#srun --ntasks=1 --cpus-per-task=6 --mem-per-cpu=4096 -t 600 -o file.out -e file.err python dataset/reorganize_data.py &
 
 
 class TableDescription(tables.IsDescription):
@@ -54,14 +55,16 @@ def reorganize_month(
     subsampling_ratio: float,
 ) -> None:
     """
-    Subsamples the data of the corresponding month and year at the given datapaths and saves it at the indicated location.
+    Subsamples the data of the corresponding month and year at the given datapaths and saves it at the indicated
+    location.
 
     Args:
         year (int): The year which the desired data is from.
         month (int): The month we want to reorganize the data from.
         datapaths (list[list[str]]): A list of lists. Each sub-list contains all relevant datapaths for that month
         output_path (str): The path to the folder in which the new data should be stored.
-        subsampling ratio (float): Percentage of the data that should be kept. A value of 0.2 means 2% of the data are kept.
+        subsampling ratio (float): Percentage of the data that should be kept. A value of 0.2 means 2% of the data are
+            kept.
 
     Returns:
         None
@@ -95,7 +98,8 @@ def reorganize_month(
                     data = in_h5.get_node(f"/{year}/{doy}/all_data")
 
                     mask_stations = np.isin(data.col("station"), stations)
-                    # subsample based on  second of day. to ensure good coverage, add random perturbation to the sod we want to keep
+                    # subsample based on  second of day. to ensure good coverage, add random perturbation to the sod we
+                    # want to keep.
                     if subsampling_ratio == 1:
                         mask_subsampling = np.ones_like(mask_stations)
                     else:
