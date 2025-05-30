@@ -255,7 +255,7 @@ class DatasetIndices(DatasetGNSS):
             
             # fetch data and indices
             file, data = get_file_and_data(datapath, f"/{year}/{doy}/all_data", pytables)
-            indices = self._get_indices(data, pytables) #TODO: need to be sure that the given file actually exists
+            indices = self._get_indices(data, pytables)
             
             self.datapaths_info.append(
                 {
