@@ -23,7 +23,7 @@ def get_solar_indices(solar_indices_path: str) -> tuple[dict, dict]:
     # fetch hourly solar index data
     hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
     labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
-    solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
+    solar_indices_hourly = pd.read_csv(hourly_path, sep=r'\s+', names=labels)
     last_doy = {2020: 366, 2021: 365, 2022: 365, 2023: 365, 2024: 366, 2025: 365}
     solar_indices_lookup_hourly = {
         (row["year"], row["doy"], row["hour"]): row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) 
@@ -50,7 +50,7 @@ def get_solar_indices(solar_indices_path: str) -> tuple[dict, dict]:
     
     # fetch daily solar index data
     daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
-    solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
+    solar_indices_daily = pd.read_csv(daily_path, sep=r'\s+', names=labels)
     solar_indices_lookup_daily = {
         (row["year"], row["doy"]): row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) 
         for _, row in solar_indices_daily.iterrows()
