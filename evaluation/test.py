@@ -1,6 +1,8 @@
 import torch
+from torch.utils.data import DataLoader
+from torch.nn import Module
 
-def test(dataloader, model, loss_fct, device):
+def test(dataloader: DataLoader, model: Module, loss_fct: Module, device: torch.device) -> float:
     """
     Evaluates the given model on the data in the dataloader using the given loss function.
 

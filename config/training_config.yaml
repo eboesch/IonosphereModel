@@ -30,6 +30,8 @@ normalize_features: false
 pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-19-15-24-01/" # hourly solar indices 4+2 MAE training loss
 # pretrained_model_path: null   
 training_loss: "MAE"
+
+# only relevant when pretrained_model_path is null
 model_type: "FCN"
 num_hidden_layers: 7
 hidden_size: 256
@@ -45,6 +47,6 @@ use_reorganized_data: false
 datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 models_dir_name: "models"
-reorganized_data_dir_name: "reorganized_daily_data_daily_solars"
+# reorganized_data_dir_name: "reorganized_daily_data_daily_solars"
 # reorganized_data_dir_name: "reorganized_daily_data_hourly_solars"
 solar_indices_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"

@@ -1,4 +1,5 @@
 altair==5.5.0
+attrs==25.3.0
 blosc2==3.2.0
 certifi==2025.1.31
 charset-normalizer==3.4.1
@@ -9,12 +10,16 @@ fonttools==4.56.0
 fsspec==2025.3.0
 h5py==3.13.0
 idna==3.10
+ipykernel==6.29.5
 Jinja2==3.1.6
+jsonschema==4.23.0
+jsonschema-specifications==2025.4.1
 kiwisolver==1.4.8
 MarkupSafe==3.0.2
 matplotlib==3.10.1
 mpmath==1.3.0
 msgpack==1.1.0
+narwhals==1.40.0
 ndindex==1.9.2
 networkx==3.4.2
 numexpr==2.10.2
@@ -43,8 +48,13 @@ pyparsing==3.2.1
 python-dateutil==2.9.0.post0
 pytz==2025.1
 PyYAML==6.0.2
+referencing==0.36.2
 requests==2.32.3
+rpds-py==0.25.0
+scipy==1.15.3
+setuptools==80.7.1
 six==1.17.0
+spacepy==0.7.0
 sympy==1.13.1
 tables==3.10.2
 torch==2.6.0
@@ -53,4 +63,5 @@ triton==3.2.0
 typing_extensions==4.12.2
 tzdata==2025.1
 urllib3==2.3.0
+vega-datasets==0.9.0
 vl-convert-python==1.7.0

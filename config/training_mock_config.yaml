@@ -1,0 +1,33 @@
+# training params
+learning_rate: 0.001
+batch_size: 1024
+epochs: 10
+num_workers: 1
+pytables: false 
+optional_features: 
+  - "kp_index_daily"
+  - "r_index_daily"
+  - "dst_index_daily"
+  - "f_index_daily"
+use_spheric_coords: false
+normalize_features: false
+
+
+pretrained_model_path: null
+training_loss: "MAE"
+model_type: "FCN"
+num_hidden_layers: 2
+hidden_size: 256
+
+# time period
+year: 2024
+start_doy: 183
+num_days: 1
+
+
+# paths
+use_reorganized_data: false
+datapath: "example_code/mock_dataset/"
+dslab_path: "example_code/"
+models_dir_name: "models"
+solar_indices_path: "example_code/solar_indices_data/"

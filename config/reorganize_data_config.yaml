@@ -1,17 +1,8 @@
 datapath: "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
 dslab_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-solar_indices_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
-solar_indices_mode: "hourly"
-# output_dir_name: "reorganized_data_5"
-output_dir_name: "reorganized_daily_data_hourly_solars"
+output_dir_name: "reorganized_data_subsampled"
+subsampling_ratio: 0.02
 years:
-  2022: "all"
-  2023: "all"
-  2024: "all"
-subsampling_ratio: 1 #0.02
-mode: "days"
-
-year: 2024
-first_day: 183
-last_day: 183 
-
+  # 2022: "all"
+  # 2023: "all"
+  2024: [1] #"all"
