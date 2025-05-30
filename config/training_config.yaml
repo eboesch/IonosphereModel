@@ -1,9 +1,14 @@
+# Config file for run_training.py in order to fine-tune models or to train models initialized with random weights on data corresponding to a short period of time.
+
 # training params
 learning_rate: 0.001
 batch_size: 8192
 epochs: 10
 num_workers: 16
-pytables: false # make sure to set to True when running locally or in login node
+# Whether to use pytables (true) or bring data to main memory (false)
+# Make sure to set to true when running locally or in login node, out of memory errors may happen otherwise
+# Set to false when running on the cluster for faster trainings.
+pytables: false 
 optional_features:
   - "doy"
   - "year"
@@ -24,7 +29,7 @@ normalize_features: false
 # pretrained_model_path: null   
 training_loss: "MAE"
 
-# only relevant when pretrained_model_path is null
+# only relevant when pretrained_model_path is null, otherwise pretrained model architecture is used.
 model_type: "FCN"
 num_hidden_layers: 7
 hidden_size: 256

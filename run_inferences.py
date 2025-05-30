@@ -1,3 +1,4 @@
+"""A script to run inferences for a trained model on a given dataset. Check the readme.md for further information."""
 import os
 import pandas as pd
 import torch

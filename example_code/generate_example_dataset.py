@@ -1,3 +1,4 @@
+"""Generates the example dataset used to illustrate how to run the training code."""
 import h5py
 import random 
 random.seed(42)

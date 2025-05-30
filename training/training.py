@@ -1,3 +1,4 @@
+"""Training on a single epoch code."""
 from tqdm import tqdm
 # from typing import Any
 import torch

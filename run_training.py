@@ -1,10 +1,8 @@
+"""A script to train neural networks to predict STEC. Check the readme.md for further information."""
 import os
-import pandas as pd
 import torch
 from torch import nn
 import logging
-from tqdm import tqdm
-from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from dataset.dataset import DatasetIndices, DatasetReorganized
 from evaluation.test import test

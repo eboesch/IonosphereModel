@@ -1,3 +1,4 @@
+"""A script to take the original dataset and generate a new subsampled dataset with train, val, test data separated in different files."""
 import os
 import tables
 import numpy as np

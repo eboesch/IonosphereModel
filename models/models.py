@@ -1,3 +1,4 @@
+"""Classes that implement fully connected neural networks and functions to create/load models."""
 from torch import nn
 import torch.nn.functional as F
 from typing import Any
