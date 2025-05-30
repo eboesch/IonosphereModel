@@ -1,4 +1,5 @@
-# Config file for run_training.py in order to pretrain models on reorganized data corresponding to a large period of time.
+# Config file for run_training.py in order to pretrain models 
+# on reorganized data corresponding to a large period of time.
 
 # training params
 learning_rate: 0.001

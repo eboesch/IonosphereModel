@@ -1,4 +1,5 @@
-# Config file for run_training.py in order to fine-tune models or to train models initialized with random weights on data corresponding to a short period of time.
+# Config file for run_training.py in order to fine-tune models or to train models initialized with random weights 
+# on data corresponding to a short period of time.
 
 # training params
 learning_rate: 0.001
@@ -25,7 +26,7 @@ normalize_features: false
 
  
 # model params
-# pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-10-17-39-31/" # daily solar indices 4+2 MAE training loss
+pretrained_model_path: "/cluster/work/igp_psr/dslab_FS25_data_and_weights/pretrained_models/model_2025-05-10-17-39-31/" # daily solar indices 4+2 MAE training loss
 # pretrained_model_path: null   
 training_loss: "MAE"
 

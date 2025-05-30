@@ -16,7 +16,8 @@ from typing import Any
 
 def get_solar_indices(solar_indices_path: str) -> tuple[dict, dict]:
     """
-    Fetches the solar index data at `solar_indices_path` and creates a dictionary for daily and one for hourly solar index data.
+    Fetches the solar index data at `solar_indices_path` and creates a dictionary 
+    for daily and one for hourly solar index data.
     For the daily solar indices, the keys are tuples ({year}, {doy}).
     For the hourly solar indices, the keys are tuples ({year}, {doy}, {hour}).
     """
@@ -140,7 +141,8 @@ class DatasetGNSS(Dataset):
 
     def get_optional_features(self, year: int, doy: int, sod: int) -> list:
         """
-        Returns a list of values of all optional features that are requested, as per self.optional features of the DatasetGNSS instance.
+        Returns a list of values of all optional features that are requested, 
+        as per self.optional_features of the DatasetGNSS instance.
         """
         optional_features_dict = {
             "doy": doy if not self.normalize_features else doy / 183 - 1.0,
@@ -199,16 +201,17 @@ class DatasetGNSS(Dataset):
 class DatasetIndices(DatasetGNSS):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
     """
-    Dataset class that is used to load the data when it's in the raw dataset format, i.e. without subsampling or reogranization
-    Since train, val and test data are mixed, an additional index structure is required to serparate by split.
+    Dataset class that is used to load the data when it's in the raw dataset format, 
+    i.e. without subsampling or reogranization. Since train, val and test data are mixed, 
+    an additional index structure is required to serparate by split.
 
     Attributes:
         optional_features (list[str]): List of optional features
         use_spheric_coords (bool): indicates whether to use spherical coordinates
         normalize_features (bool): indicates whether to normalize features
         datapaths_info (list[dict]): List of dictionaries. Each dictionary contains: datapath, year, doy, indices
-            (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
-            of a file in the dataset.
+            (of datapoints whose stations or in the given split), 
+            current_start_point (start position in overall dataset) of a file in the dataset.
         stations: list of all stations matching the given split type, encoded to bytes.
         solar_indices_daily: dictionary of daily solar index data, with keys ({year}, {doy})
         solar_indices_hourly: dictionary of hourly solar index data, with keys ({year}, {doy}, {hour})
@@ -353,8 +356,8 @@ class DatasetReorganized(DatasetGNSS):
         use_spheric_coords (bool): indicates whether to use spherical coordinates
         normalize_features (bool): indicates whether to normalize features
         datapaths_info (list[dict]): List of dictionaries. Each dictionary contains: datapath, year, doy, indices
-            (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
-            of a file in the dataset.
+            (of datapoints whose stations or in the given split), 
+            current_start_point (start position in overall dataset) of a file in the dataset.
         solar_indices_daily: dictionary of daily solar index data, with keys ({year}, {doy})
         solar_indices_hourly: dictionary of hourly solar index data, with keys ({year}, {doy}, {hour})
         lenght (int): length of the Dataset
@@ -476,7 +479,8 @@ class DatasetSA(DatasetGNSS):
 
     Attributes:
         df (DataFrame): DataFrame that contains the data
-        satazi: Since satellite altimetry data has no azimuth value, supply a fixed value or None for a different random azimuth value in each __getitem__ cal
+        satazi: Since satellite altimetry data has no azimuth value, supply a fixed value or 
+        None for a different random azimuth value in each __getitem__ cal
         optional_features (list[str]): List of optional features
         use_spheric_coords (bool): indicates whether to use spherical coordinates
         normalize_features (bool): indicates whether to normalize features
@@ -499,7 +503,8 @@ class DatasetSA(DatasetGNSS):
         Args:
             df (DataFrame): DataFrame that contains the satellite altimetry data
             solar_indices_path (str): path to the folder the solar index are stored in
-            satazi: Since satellite altimetry data has no azimuth value, supply a fixed value or None for a different random azimuth value in each __getitem__ cal
+            satazi: Since satellite altimetry data has no azimuth value, supply a fixed value or 
+                None for a different random azimuth value in each __getitem__ cal
             optional_features (list[str]): List of desired optional features
             use_spheric_coords (bool): indicates whether to use spherical coordinates
             normalize_features (bool): indicates whether to normalize features
@@ -561,7 +566,14 @@ if __name__ == "__main__":
     datapath = "/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/"
     dslab_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
     # datapaths_train = [dslab_path + f"reorganized_data_2/2023-{i}-train.h5" for i in range(1, 12)]
-    # train_dataset = DatasetReorganized(datapaths_train, 'train', logger, True, config['solar_indices_path'], optional_features = config['optional_features'])
+    # train_dataset = DatasetReorganized(
+    #     datapaths_train, 
+    #     'train', 
+    #     logger, 
+    #     True, 
+    #     config['solar_indices_path'], 
+    #     optional_features = config['optional_features']
+    # )
     datapaths_train = [datapath + f"2024/{str(183+i).zfill(3)}/ccl_2024{str(183+i).zfill(3)}_30_5.h5" for i in range(2)]
     train_dataset = DatasetIndices(
         datapaths_train,
