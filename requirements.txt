@@ -12,6 +12,7 @@ h5py==3.13.0
 idna==3.10
 ipykernel==6.29.5
 Jinja2==3.1.6
+joblib==1.5.1
 jsonschema==4.23.0
 jsonschema-specifications==2025.4.1
 kiwisolver==1.4.8

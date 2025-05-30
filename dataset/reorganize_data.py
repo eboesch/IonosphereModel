@@ -183,13 +183,13 @@ if __name__ == "__main__":
                 )
         
         # parallelizing allows individual months to be reorganized in parallel, instead of in sequence
-        # Parallel(n_jobs=-1)(delayed(reorganize_month)(year, month_idx + 1, datapaths, output_path, subsampling_ratio) for month_idx, datapaths in enumerate(datapaths_per_month))
+        Parallel(n_jobs=-1)(delayed(reorganize_month)(year, month_idx + 1, datapaths, output_path, subsampling_ratio) for month_idx, datapaths in enumerate(datapaths_per_month))
 
         # iterate through all months in series
-        for month_idx, datapaths in enumerate(datapaths_per_month):
-            month = month_idx + 1
-            print(f"Month: {month}")
-            reorganize_month(year, month_idx + 1, datapaths, output_path, subsampling_ratio)
+        # for month_idx, datapaths in enumerate(datapaths_per_month):
+        #     month = month_idx + 1
+        #     print(f"Month: {month}")
+        #     reorganize_month(year, month_idx + 1, datapaths, output_path, subsampling_ratio)
 
         
     
