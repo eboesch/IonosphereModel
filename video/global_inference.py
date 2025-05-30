@@ -6,7 +6,6 @@ from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from global_dataset import DatasetArtificial
 from datetime import datetime
-from models import load_model
 import yaml
 import numpy as np
 from tqdm import tqdm
@@ -15,8 +14,10 @@ from torch import nn
 from datetime import datetime, timedelta
 from spacepy.coordinates import Coords
 from spacepy.time import Ticktock
-
-inferences_config_path = "config/inferences_config.yaml"
+import sys
+sys.path.insert(1, '../models/')
+from models import load_model
+inferences_config_path = "../config/inferences_config.yaml"
 solar_indices_path = "/cluster/work/igp_psr/dslab_FS25_data_and_weights/"
 
 with open(inferences_config_path, 'r') as file:
