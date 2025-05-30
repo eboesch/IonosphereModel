@@ -3,7 +3,7 @@
 
 # Data Science Lab: Deep Learning for Ionosphere Modeling
 
-Welcome to the code repository for the ETHZ Data Science Lab 2025, challenge 16! This codebase comprises code to train and evaluate neural networks for Ionospheric Modeling.
+Welcome to the code repository for the ETHZ Data Science Lab 2025, challenge 16! This codebase comprises of code to train and evaluate neural networks for Ionospheric Modeling.
 
 ## Contents
 
@@ -19,13 +19,13 @@ Welcome to the code repository for the ETHZ Data Science Lab 2025, challenge 16!
 
 
 ## About
-The codebase allows to:
+The codebase allows one to:
 - Train neural networks from scratch in order to build global STEC maps for a short period of time (typically 1 day).
 - Pretrain neural networks on subsampled data corresponding to a longer period of time (January 2022 to June 2024 in our setup)
 - Subsample STEC daily datasets in order to generate the pretraining data.
 - Fine tune pretrained neural networks in order to build global STEC maps for a short period of time.
 - Use a trained model to run inferences on datasets comprising a short period of time.
-- Run data analysis and visualizations on inferences results.
+- Run data analysis and visualizations on inference results.
 - Make videos that show the predicted STEC of our models overlaid to an Earth map as a function of time.
 
 The code is designed to run in the ETHZ Euler cluster. The Python environment has been tested on Euler. Pretrainings on Euler take 2-6 hours depending on the amount of data. While the testing coverage for the code outside of Euler has been less extensive, the following instructions can also be followed outside Euler and everything should work. Training and inference times will depend on the user's available resources.
@@ -51,7 +51,7 @@ The lists of stations within each split are contained in the files `train.list`,
 ### Data Reorganization
 The dataset format is suitable for training models from scratch or for fine-tuning pretrained models on few days worth of data in a short period of time. However, the structure of the dataset is not suitable for pretraining models, given that the dataset is very large and cannot fit into memory. Furthermore train, val and test data are mixed within the files for each day.
 
-We reorganized the data by separating it into train, val and test files and subsampling it. The subsampled dataset fits in memory, which is a key factor to speed up the training, and it can be manipulated more easily since the training, validation and test data are separated.
+We reorganized the data by separating it into train, val and test files and subsampling it. The subsampled dataset fits in memory, which is a key factor that speeds up the training. The reorganized dataset can be manipulated more easily since the training, validation and test data are separated.
 
 On the Euler cluster, the script to run data reorganization can be run with
 ```bash
