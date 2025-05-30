@@ -128,9 +128,6 @@ Elena talk about plots with val loss
 
 `video/global_inference.py` calculates model inferences for every part of the world for an entire day. `video/make_video.ipynb` creates visualizations of those inferences and stiches them together to make a video.
 
-## Miscellaneous
-Nerf stuff
-
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
