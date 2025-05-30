@@ -5,6 +5,12 @@ epochs: 10
 num_workers: 1
 pytables: false 
 optional_features: 
+  # - "doy"
+  # - "year"
+  # - "kp_index_hourly"
+  # - "r_index_hourly"
+  # - "dst_index_hourly"
+  # - "f_index_hourly"
   - "kp_index_daily"
   - "r_index_daily"
   - "dst_index_daily"
