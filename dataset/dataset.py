@@ -7,16 +7,18 @@ from numpy.typing import NDArray
 from logging import Logger
 import logging
 import h5py
-import time
-import psutil
 import os
 import pandas as pd
 
 
 def get_solar_indices(solar_indices_path: str):
     """
-    
+    Fetches the solar index data at `solar_indices_path` and creates a dictionary for daily and one for hourly solar index data. 
+    For the daily solar indices, the keys are tuples ({year}, {doy}). 
+    For the hourly solar indices, the keys are tuples ({year}, {doy}, {hour}). 
     """
+
+    # fetch hourly solar index data
     hourly_path = solar_indices_path + "omni2_solar_indices_hourly.lst"
     labels = ["year", "doy", "hour", "kp_index", "r_index", "dst_index", "f_index"]
     solar_indices_hourly = pd.read_csv(hourly_path, sep='\s+', names=labels)
@@ -25,10 +27,13 @@ def get_solar_indices(solar_indices_path: str):
         (row["year"], row["doy"], row["hour"]): row[["kp_index", "r_index", "dst_index", "f_index"]].to_numpy().reshape(-1) 
         for _, row in solar_indices_hourly.iterrows()
     }
+
+    # for each day, add a row with hour=24 with data of midnight of the next day
     for _, row in solar_indices_hourly.iterrows():
         if row["hour"] == 23:
+            # if our current doy is the last day of the year, need to fetch data from the first day of the next year
             if last_doy[row["year"]] == row["doy"]:
-                if row["year"] < 2024:
+                if row["year"] < 2024: # don't have solar index data for 2025
                     solar_indices_lookup_hourly.update(
                         {(row["year"], row["doy"], 24): solar_indices_lookup_hourly[(row["year"]+1, 1, 0)]}
                     )
@@ -36,11 +41,12 @@ def get_solar_indices(solar_indices_path: str):
                     solar_indices_lookup_hourly.update(
                         {(row["year"], row["doy"], 24): solar_indices_lookup_hourly[(row["year"], row["doy"], 23)]}
                     )
-            else:
+            else: # add data of midnight of the next day
                 solar_indices_lookup_hourly.update(
                     {(row["year"], row["doy"], 24): solar_indices_lookup_hourly[(row["year"], row["doy"] + 1, 0)]}
                 )
-        
+    
+    # fetch daily solar index data
     daily_path = solar_indices_path + "omni2_solar_indices_daily.lst"
     solar_indices_daily = pd.read_csv(daily_path, sep='\s+', names=labels)
     solar_indices_lookup_daily = {
@@ -50,35 +56,24 @@ def get_solar_indices(solar_indices_path: str):
 
     return solar_indices_lookup_daily, solar_indices_lookup_hourly
 
-
 def get_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
-    if use_spheric_coords:
-        angle_coords = [
-            np.cos(2 * np.pi * row['satele'] / 360) * np.cos(2 * np.pi * row['satazi'] / 360),
-            np.cos(2 * np.pi * row['satele'] / 360) * np.sin(2 * np.pi * row['satazi'] / 360),
-            np.sin(2 * np.pi * row['satele'] / 360)
-        ]
-
-    else:
-        angle_coords = [
-            np.sin(2 * np.pi * row['satazi'] / 360),
-            np.cos(2 * np.pi * row['satazi'] / 360),
-            row['satele'] if not normalize_features else row['satele'] / 45 - 1.0,
-        ]
-    x = torch.tensor(
-            [
-                row['sm_lat_ipp'] if not normalize_features else row['sm_lat_ipp'] / 90,
-                np.sin(2 * np.pi * row['sm_lon_ipp'] / 360),
-                np.cos(2 * np.pi * row['sm_lon_ipp'] / 360),
-                np.sin(2 * np.pi * row['sod'] / 86400),
-                np.cos(2 * np.pi * row['sod'] / 86400), 
-            ] + angle_coords + optional_features_values,
-            dtype=torch.float32
-        )
+    """
+    Given a row, returns featurs x and label y
+    """
+    x = get_only_features_from_row(row, optional_features_values, use_spheric_coords, normalize_features)
     y = torch.tensor([row['stec']]) # label
     return x, y
 
 def get_only_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
+    """
+    Returns features from the given row.
+
+    Args:
+        row: a row of the dataset 
+        optional_features_values: list of the values of all desired optional features
+        use_spheric_coords (bool): indicates whether to use spherical coordinates
+        normalize_features (bool): indicates whether to normalize features
+    """
     if use_spheric_coords:
         angle_coords = [
             np.cos(2 * np.pi * row['satele'] / 360) * np.cos(2 * np.pi * row['satazi'] / 360),
@@ -105,6 +100,10 @@ def get_only_features_from_row(row: NDArray, optional_features_values: list, use
     return x
 
 def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
+    """
+    Opens the file at `filepath` and fetches the corresponding data at `nodepath`.
+    If pytables is True, uses pytables to handle file and data.
+    """
     if pytables:
         file = tables.open_file(filepath, mode='r', driver='H5FD_SEC2')
         data = file.get_node(nodepath)
@@ -116,22 +115,32 @@ def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
 
 
 class DatasetGNSS(Dataset):
+    """
+    Base class for all three dataset classes that provides a common class method to handle optional features.
+    """
     solar_indices_daily: dict
     solar_indices_hourly: dict
     optional_features: list | dict
     normalize_features: bool
 
-    def get_optional_features(self, year: int, doy: int, sod:int ):
+    def get_optional_features(self, year: int, doy: int, sod:int) -> list:
+        """
+        Returns a list of values of all optional features that are requested, as per self.optional features of the DatasetGNSS instance.
+        """
         optional_features_dict = {
             'doy': doy if not self.normalize_features else doy / 183 - 1.0,
             'year': year,
         }
+
+        # NOTE: Some of our older models had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if isinstance(self.optional_features, list):
             optional_features_names = self.optional_features
         else:
             optional_features_names = self.optional_features["delayed"]
             assert len(self.optional_features["initial"]) == 0
 
+        # fetch daily solar index data, if requested
         if np.any(["daily" in f for f in optional_features_names]):
             daily_solar_indices = self.solar_indices_daily[(int(year), int(doy))]
             optional_features_dict.update(
@@ -143,6 +152,7 @@ class DatasetGNSS(Dataset):
                 }
             )
 
+        # fetch hourly solar index data, if requested
         if np.any(["hourly" in f for f in optional_features_names]):
             hour = np.round(sod/3600).astype(int)
             hourly_solar_indices = self.solar_indices_hourly[(int(year), int(doy), int(hour))]
@@ -155,7 +165,12 @@ class DatasetGNSS(Dataset):
                 }
             )
 
+
+        # create list of values of all optional features that were requested
+
         optional_features_values = []
+        # NOTE: Some of our older models had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if type(self.optional_features) == dict:
             for tier in self.optional_features:
                 for feature in self.optional_features[tier]:
@@ -168,6 +183,23 @@ class DatasetGNSS(Dataset):
 
 class DatasetIndices(DatasetGNSS):
     # An adaptation of https://github.com/arrueegg/STEC_pretrained/blob/main/src/utils/data_SH.py
+    """
+    Dataset class that is used to load the data when it's in the raw dataset format, i.e. without subsampling or reogranization
+    Since train, val and test data are mixed, an additional index structure is required to serparate by split.
+    
+    Attributes:
+        optional_features (list[str]): List of optional features
+        use_spheric_coords (bool): indicates whether to use spherical coordinates
+        normalize_features (bool): indicates whether to normalize features
+        datapaths_info (list[dict]): List of dictionaries. Each dictionary contains: datapath, year, doy, indices 
+            (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
+            of a file in the dataset.
+        stations: list of all stations matching the given split type, encoded to bytes.
+        solar_indices_daily: dictionary of daily solar index data, with keys ({year}, {doy})
+        solar_indices_hourly: dictionary of hourly solar index data, with keys ({year}, {doy}, {hour})
+        lenght (int): length of the Dataset
+    """
+    
     def __init__(
             self, 
             datapaths: list[str], 
@@ -178,19 +210,24 @@ class DatasetIndices(DatasetGNSS):
             optional_features: list[str] = ['doy', 'year'], 
             use_spheric_coords: bool = False, 
             normalize_features: bool = False
-    ):
+    ) -> None:
         """
-        Creates an instance of DatasetGNSS. 
-        
-        Attributes:
-            datapaths_info :    List of dictionaries. Each dictionary contains: datapath, year, doy, indices 
-                (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
-                of a file in the dataset.
-            stations :  list of all stations matching the given split type, encoded to bytes.
-            lenght :    length of the Dataset
+        Creates an instance of DatasetIndices.
+
+        Args:
+            datapaths (list[str]): list of paths to the location of all datasets that should be incorporated
+            split (str): determines which datasplit (train, val, test) to process
+            logger (Logger): for loggin status reports
+            pytables (bool): indicates whether to use pytables
+            solar_indices_path (str): path to the folder the solar index are stored in
+            optional_features (list[str]): List of desired optional features
+            use_spheric_coords (bool): indicates whether to use spherical coordinates
+            normalize_features (bool): indicates whether to normalize features
         """
 
         self.optional_features = optional_features or []
+        # NOTE: Some of our older models had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if type(self.optional_features) == dict:
             for tier in self.optional_features:
                 self.optional_features[tier] = self.optional_features[tier] or []
@@ -200,13 +237,13 @@ class DatasetIndices(DatasetGNSS):
 
         self.datapaths_info = []
         with open(f"dataset/{split}.list", "r") as file:
-            self.stations = [line.strip().encode('utf8') for line in file]
+            self.stations = [line.strip().encode('utf8') for line in file] # create list of stations
 
         current_start_point = 0
 
+        # iterating through all datapaths
         for datapath in datapaths:            
             if not(os.path.isfile(datapath)):
-                # delete this day from datapaths, as there is no data available for that day 
                 logger.info(f"Skipping {datapath}")
                 continue
             
@@ -214,6 +251,7 @@ class DatasetIndices(DatasetGNSS):
             year = datapath.split('/')[-3]
             doy = datapath.split('/')[-2]
             
+            # fetch data and indices
             file, data = get_file_and_data(datapath, f"/{year}/{doy}/all_data", pytables)
             indices = self._get_indices(data, pytables) #TODO: need to be sure that the given file actually exists
             
@@ -231,13 +269,14 @@ class DatasetIndices(DatasetGNSS):
             current_start_point += len(indices)
             # logger.info(f"Completed {datapath}")
 
+        # fetch solar indices data
         self.solar_indices_daily, self.solar_indices_hourly = get_solar_indices(solar_indices_path)
             
         self.length = current_start_point
             
     def _get_indices(self, data, pytables: bool) -> NDArray:
         """
-        Returns the indices of all datapoints whose stations is in the current datasplit.
+        Returns the indices of all datapoints whose station is in the current datasplit.
         """
         # select indices of datapoints whose stations that are in the current split
         if pytables:
@@ -276,23 +315,55 @@ class DatasetIndices(DatasetGNSS):
 
         return x, y
         
-    def __len__(self):
+    def __len__(self) -> int:
         """
-        Returns length of the dataset in use.
+        Returns length of the dataset.
         """
         return self.length
     
-    def __del__(self):
+    def __del__(self) -> None:
+        """
+        Closes all open files.
+        """
         for datapath_info in self.datapaths_info:
             datapath_info["file"].close()
 
 
 
 class DatasetReorganized(DatasetGNSS):
-    # NOTE: split is only passed to match the same signature as DatasetIndices
-    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path: str, optional_features: list[str] = ['doy', 'year'], use_spheric_coords: bool = False, normalize_features: bool = False):
+    """
+    Dataset class that is used to load the data reorganized data.
+    
+    Attributes:
+        optional_features (list[str]): List of optional features
+        use_spheric_coords (bool): indicates whether to use spherical coordinates
+        normalize_features (bool): indicates whether to normalize features
+        datapaths_info (list[dict]): List of dictionaries. Each dictionary contains: datapath, year, doy, indices 
+            (of datapoints whose stations or in the given split), current_start_point (start position in overall dataset)
+            of a file in the dataset.
+        solar_indices_daily: dictionary of daily solar index data, with keys ({year}, {doy})
+        solar_indices_hourly: dictionary of hourly solar index data, with keys ({year}, {doy}, {hour})
+        lenght (int): length of the Dataset
+    """
+    
+    def __init__(self, datapaths: list[str], split: str, logger: Logger, pytables: bool, solar_indices_path: str, optional_features: list[str] = ['doy', 'year'], use_spheric_coords: bool = False, normalize_features: bool = False) -> None:
+        """
+        Creates an instance of DatasetReorganized.
 
+        Args:
+            datapaths (list[str]): list of paths to the location of all datasets that should be incorporated
+            split (str): split is only passed to match the same signature as DatasetIndices
+            logger (Logger): for loggin status reports
+            pytables (bool): indicates whether to use pytables
+            solar_indices_path (str): path to the folder the solar index are stored in
+            optional_features (list[str]): List of desired optional features
+            use_spheric_coords (bool): indicates whether to use spherical coordinates
+            normalize_features (bool): indicates whether to normalize features
+        """
+                
         self.optional_features = optional_features or []
+        # NOTE: Some of our older models had a two-tier format of optional_features.
+        # For the sake of backwards comptatibility we make this distinction here
         if type(self.optional_features) == dict:
             for tier in self.optional_features:
                 self.optional_features[tier] = self.optional_features[tier] or []
@@ -303,11 +374,13 @@ class DatasetReorganized(DatasetGNSS):
         current_start_point = 0
         self.datapaths_info = []
 
+        # iterating through all datapaths
         for datapath in datapaths:            
             if not(os.path.isfile(datapath)):
                 logger.info(f"Skipping {datapath}")
                 continue
             
+            # extract year and doy from datapath
             filename =  datapath.split('/')[-1]
             year = filename.split('-')[0]
             month = datapath.split('-')[1]
@@ -360,19 +433,47 @@ class DatasetReorganized(DatasetGNSS):
         return x, y
 
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
-        Returns length of the dataset in use.
+        Returns length of the dataset.
         """
         return self.length
     
-    def __del__(self):
+    def __del__(self) -> None:
+        """
+        Closes all open files.
+        """
         for datapath_info in self.datapaths_info:
             datapath_info["file"].close()
 
 
 class DatasetSA(DatasetGNSS):
-    def __init__(self, df, solar_indices_path: str, optional_features: list[str] = ['doy', 'year'], satazi=None, use_spheric_coords: bool = False, normalize_features: bool = False):
+    """
+    Dataset class that is used to load the data reorganized data.
+    
+    Attributes:
+        df (DataFrame): DataFrame that contains the data
+        satazi: Since satellite altimetry data has no azimuth value, supply a fixed value or None for a different random azimuth value in each __getitem__ cal
+        optional_features (list[str]): List of optional features
+        use_spheric_coords (bool): indicates whether to use spherical coordinates
+        normalize_features (bool): indicates whether to normalize features
+        solar_indices_daily: dictionary of daily solar index data, with keys ({year}, {doy})
+        solar_indices_hourly: dictionary of hourly solar index data, with keys ({year}, {doy}, {hour})
+    """
+
+    def __init__(self, df, solar_indices_path: str, optional_features: list[str] = ['doy', 'year'], satazi: float | None = None, use_spheric_coords: bool = False, normalize_features: bool = False) -> None:
+        """
+        Creates an instance of DatasetReorganized.
+
+        Args:
+            df (DataFrame): DataFrame that contains the satellite altimetry data
+            solar_indices_path (str): path to the folder the solar index are stored in
+            satazi: Since satellite altimetry data has no azimuth value, supply a fixed value or None for a different random azimuth value in each __getitem__ cal
+            optional_features (list[str]): List of desired optional features
+            use_spheric_coords (bool): indicates whether to use spherical coordinates
+            normalize_features (bool): indicates whether to normalize features
+        """
+
         df = df.rename(columns={'sm_lat': 'sm_lat_ipp', 'sm_lon': 'sm_lon_ipp'})
         print(df.columns)
         df['time'] = pd.to_datetime(df['time'])
@@ -392,7 +493,11 @@ class DatasetSA(DatasetGNSS):
         self.solar_indices_daily, self.solar_indices_hourly = get_solar_indices(solar_indices_path)
 
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
+        """
+        Loads and returns a sample from the dataset at the given index as a tensor. 
+        Features are transformed as necessary. 
+        """
         row = self.df.iloc[index].copy()
         year = float(row['year'])
         doy = float(row['doy'])
@@ -406,19 +511,16 @@ class DatasetSA(DatasetGNSS):
         x, y = get_features_from_row(row, optional_features_values, self.use_spheric_coords, self.normalize_features)
         return x, y
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """
+        Returns length of the dataset in use.
+        """
         return self.df.shape[0]
         
 
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
-
-    # datapaths = [f"/cluster/work/igp_psr/arrueegg/GNSS_STEC_DB/2024/{str(doy).zfill(3)}/ccl_2024{str(doy).zfill(3)}_30_5.h5" for doy in range(1, 3)]
-    # train_dataset = DatasetGNSS(datapaths, "train", logger)
-    # for i in range(100):
-    #     print(train_dataset[i])
-    # train_dataset.__del__()
 
     import yaml
     # config_path = "config/pretraining_config.yaml"
