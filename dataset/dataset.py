@@ -1,3 +1,4 @@
+"""Comprises all the classes used to load our datasets."""
 from torch.utils.data import Dataset
 import torch
 import tables
@@ -9,9 +10,10 @@ import logging
 import h5py
 import os
 import pandas as pd
+from typing import Any
 
 
-def get_solar_indices(solar_indices_path: str):
+def get_solar_indices(solar_indices_path: str) -> tuple[dict, dict]:
     """
     Fetches the solar index data at `solar_indices_path` and creates a dictionary for daily and one for hourly solar index data. 
     For the daily solar indices, the keys are tuples ({year}, {doy}). 
@@ -56,7 +58,7 @@ def get_solar_indices(solar_indices_path: str):
 
     return solar_indices_lookup_daily, solar_indices_lookup_hourly
 
-def get_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
+def get_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Given a row, returns featurs x and label y
     """
@@ -64,7 +66,7 @@ def get_features_from_row(row: NDArray, optional_features_values: list, use_sphe
     y = torch.tensor([row['stec']]) # label
     return x, y
 
-def get_only_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False):
+def get_only_features_from_row(row: NDArray, optional_features_values: list, use_spheric_coords: bool = False, normalize_features: bool = False) -> torch.Tensor:
     """
     Returns features from the given row.
 
@@ -99,7 +101,7 @@ def get_only_features_from_row(row: NDArray, optional_features_values: list, use
         )
     return x
 
-def get_file_and_data(filepath: str, nodepath: str, pytables: bool):
+def get_file_and_data(filepath: str, nodepath: str, pytables: bool) -> tuple[Any, Any]:
     """
     Opens the file at `filepath` and fetches the corresponding data at `nodepath`.
     If pytables is True, uses pytables to handle file and data.
@@ -332,7 +334,7 @@ class DatasetIndices(DatasetGNSS):
 
 class DatasetReorganized(DatasetGNSS):
     """
-    Dataset class that is used to load the data reorganized data.
+    Dataset class that is used to load the reorganized data.
     
     Attributes:
         optional_features (list[str]): List of optional features
