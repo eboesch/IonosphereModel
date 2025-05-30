@@ -33,6 +33,7 @@ The main dataset used for this project has not yet been published. In order to i
 
 ## Installation
 - Clone the repository with `git clone git@github.com:eboesch/IonosphereModel.git`
+- We used Python 3.12.8.
 - If working on the Euler cluster, run `module load stack/2024-06 python/3.12.8`. If running on your local machine, this step can be skipped.
 - Create a virtual environment with `python3 -m venv ./venv` and activate it with `source venv/bin/activate`.
 - Install the required Python packages with `pip install -r requirements.txt`.
